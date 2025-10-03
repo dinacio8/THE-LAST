@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vercel dev",
-    "build": "vercel build",
-    "start": "vercel start"
+    "dev": "echo 'Run locally with Vercel CLI (npm i -g vercel)'",
+    "build": "echo 'No build step needed'",
+    "start": "echo 'Use Vercel deployment'"
   },
   "dependencies": {
     "mysql2": "^3.10.0",
