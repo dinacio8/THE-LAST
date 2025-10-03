@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Paiement - Soirée Rave</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100 flex flex-col min-h-screen">
+
+  <!-- HEADER -->
+  <header class="bg-gray-800 fixed top-0 w-full z-50">
+    <div class="max-w-6xl mx-auto flex justify-between items-center p-4">
+      <div class="flex items-center gap-3">
+        <img src="terrain_GE_gvapaintball_01.png" alt="Logo GVA Paintball" class="h-10 md:h-14 object-contain">
+        <span class="font-bold text-green-400 text-lg md:text-xl">Soirée Rave</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="flex-1 flex items-center justify-center mt-20">
+    <form action="/api/simulate-success" method="POST"
+          class="bg-gray-800 p-6 rounded-lg shadow-lg w-96 flex flex-col gap-4">
+      <h2 class="text-lg font-bold text-green-400">Paiement test</h2>
+      <p class="text-gray-300 text-sm">Entre ton email pour recevoir ton billet :</p>
+
+      <input type="email" name="email" required
+             class="px-3 py-2 rounded bg-gray-700 text-white">
+
+      <input id="sessionInput" type="hidden" name="session_id" value="">
+      <input id="typeInput" type="hidden" name="type" value="">
+
+      <button type="submit"
+              class="bg-green-500 hover:bg-green-600 py-2 rounded-lg font-bold text-gray-900">
+        Simuler un paiement
+      </button>
+    </form>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="bg-gray-800 p-4 text-center text-sm text-gray-400">
+    Sponsorisé par GVA Paintball
+  </footer>
+
+  <script>
+    (function() {
+      const params = new URLSearchParams(window.location.search);
+      const sid = params.get('session_id') || ('FAKE-' + Date.now());
+      const type = params.get('type') || 'INDIVIDUEL';
+      document.getElementById('sessionInput').value = sid;
+      document.getElementById('typeInput').value = type;
+    })();
+  </script>
+</body>
+</html>

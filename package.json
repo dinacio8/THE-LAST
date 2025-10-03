@@ -1,17 +1,15 @@
 {
-  "name": "the-last-rave",
+  "name": "rave-paintball",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "echo 'Run locally with Vercel CLI (npm i -g vercel)'",
-    "build": "echo 'No build step needed'",
-    "start": "echo 'Use Vercel deployment'"
+    "dev": "vercel dev",
+    "start": "node api/index.js"
   },
   "dependencies": {
-    "mysql2": "^3.10.0",
-    "pdfkit": "^0.15.0",
+    "pdfkit": "^0.13.0",
     "qrcode": "^1.5.3",
     "resend": "^3.2.0",
-    "stripe": "^16.0.0"
+    "stripe": "^14.0.0"
   }
 }

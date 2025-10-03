@@ -3,28 +3,69 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Paiement réussi - THE LAST</title>
+  <title>Paiement confirmé - The Last</title>
+  <meta name="description" content="Ton paiement pour The Last est confirmé ! Reçois ton billet et ta facture par email.">
+  <link rel="icon" href="terrain_GE_gvapaintball_01.png" type="image/png">
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-green-50 flex items-center justify-center h-screen text-center">
+<body class="bg-gray-50 text-gray-900 flex flex-col min-h-screen">
 
-  <div class="bg-white p-8 rounded-lg shadow-lg max-w-lg">
-    <h1 class="text-3xl font-bold text-green-600">Merci pour ton achat 🎉</h1>
-    <p class="mt-4 text-lg">Ton billet et ta facture viennent d’être envoyés à ton adresse email.</p>
-    <p class="mt-2 text-gray-600">N'oublie pas de les présenter à l’entrée de l’événement.</p>
-    <a href="/index.html" class="mt-6 inline-block bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg">
+  <!-- HEADER -->
+  <header class="bg-white shadow fixed top-0 w-full z-50">
+    <div class="max-w-6xl mx-auto flex justify-between items-center p-4">
+      <a href="/index.html" class="flex items-center gap-4">
+        <img src="terrain_GE_gvapaintball_01.png" alt="Logo GVA Paintball"
+             class="h-10 md:h-16 lg:h-20 object-contain">
+        <span class="font-bold text-green-600 text-lg md:text-2xl">The Last</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="flex-1 flex flex-col justify-center items-center text-center px-4 pt-24">
+    <h1 class="text-4xl font-bold text-green-600 mb-6">✅ Paiement confirmé !</h1>
+    <p class="text-lg md:text-xl max-w-2xl mb-6">
+      Merci pour ton achat 🎉 Ton billet et ta facture pour <strong>The Last</strong> vont être envoyés à ton adresse email 📩.
+    </p>
+    <p id="statusMsg" class="text-gray-600 mb-8">
+      ⏳ Envoi en cours...
+    </p>
+    <a href="/index.html" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg">
       Retour à l’accueil
     </a>
-  </div>
+  </main>
 
+  <!-- FOOTER -->
+  <footer class="bg-gray-100 p-6 text-center text-sm text-gray-500">
+    © 2025 The Last — Tous droits réservés
+  </footer>
+
+  <!-- SCRIPT -->
   <script>
-    // ⚡ Envoi du mail de billet/facture après redirection
-    const urlParams = new URLSearchParams(window.location.search);
-    const type = urlParams.get("type");
+    const orderData = JSON.parse(localStorage.getItem("orderData"));
 
-    // Ici on pourrait récupérer le buyer via Stripe Checkout Session si besoin
-    // mais on simplifie en redemandant les infos depuis le backend
-    // (optionnel : à ajuster si tu veux un flux 100% synchro avec Stripe Webhooks)
+    if (orderData) {
+      fetch("/api/send-ticket", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderData),
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          document.getElementById("statusMsg").textContent = "📩 Mail envoyé avec succès ! Vérifie ta boîte mail.";
+          localStorage.removeItem("orderData");
+        } else {
+          document.getElementById("statusMsg").textContent = "⚠️ Problème lors de l’envoi du mail. Contacte-nous si tu ne reçois rien.";
+        }
+      })
+      .catch(err => {
+        console.error("❌ Erreur envoi:", err);
+        document.getElementById("statusMsg").textContent = "❌ Erreur technique lors de l’envoi du billet.";
+      });
+    } else {
+      document.getElementById("statusMsg").textContent = "⚠️ Impossible de retrouver les infos de commande.";
+    }
   </script>
 </body>
 </html>
