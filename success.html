@@ -1,87 +1,74 @@
-import Stripe from "stripe";
-import { Resend } from "resend";
-import { buffer } from "micro";
-import { generateTicket, generateInvoice } from "../../utils/pdfGenerator.js";
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Paiement confirmé - The Last</title>
+  <meta name="description" content="Paiement confirmé pour The Last @ GVA Paintball. Ton billet et ta facture ont été envoyés par email.">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900 flex flex-col min-h-screen">
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const resend = new Resend(process.env.RESEND_API_KEY);
+  <!-- HEADER -->
+  <header class="bg-white shadow p-4 flex justify-between items-center">
+    <a href="/index.html" class="flex items-center gap-3">
+      <img src="terrain_GE_gvapaintball_01.png" alt="Logo GVA Paintball" class="h-10">
+      <span class="text-2xl font-bold text-green-600">The Last</span>
+    </a>
+  </header>
 
-export const config = {
-  api: {
-    bodyParser: false, // Stripe demande un raw body pour signature
-  },
-};
+  <!-- MAIN -->
+  <main class="flex-1 flex flex-col justify-center items-center text-center p-8">
+    <div class="bg-white shadow-xl rounded-xl p-8 max-w-lg w-full">
+      <h1 class="text-3xl font-bold text-green-600 mb-4">✅ Paiement confirmé !</h1>
+      <div id="order-info" class="text-gray-700 text-lg">
+        <p>Chargement des informations de commande...</p>
+      </div>
+      <a href="/index.html"
+         class="inline-block mt-8 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg">
+        Retour à l’accueil
+      </a>
+    </div>
+  </main>
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).end("Méthode non autorisée");
-  }
+  <!-- FOOTER -->
+  <footer class="bg-gray-100 p-6 text-center text-sm text-gray-500">
+    ©️ 2025 The Last — Tous droits réservés
+  </footer>
 
-  let event;
-  try {
-    const sig = req.headers["stripe-signature"];
-    const buf = await buffer(req);
+  <!-- SCRIPT -->
+  <script>
+    (async () => {
+      const params = new URLSearchParams(window.location.search);
+      const sessionId = params.get("session_id");
 
-    event = stripe.webhooks.constructEvent(
-      buf,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-  } catch (err) {
-    console.error("❌ Erreur vérification signature Stripe:", err.message);
-    return res.status(400).send(⁠ Webhook Error: ${err.message} ⁠);
-  }
+      const infoDiv = document.getElementById("order-info");
 
-  // ✅ Paiement confirmé
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
-    const { type, firstName, lastName, address } = session.metadata;
-    const email = session.customer_email;
+      if (!sessionId) {
+        infoDiv.innerHTML = "⚠️ Impossible de retrouver la session de paiement.";
+        return;
+      }
 
-    try {
-      const price = type === "VIP" ? 15 : 5;
-      const ticketId = ⁠ TICKET-${Date.now()} ⁠;
-      const invoiceId = ⁠ FAC-2025-10-${Date.now().toString().slice(-4)} ⁠;
-      const buyer = { firstName, lastName, email, address };
+      try {
+        const res = await fetch(⁠ /api/tickets?session_id=${sessionId} ⁠);
+        const data = await res.json();
 
-      console.log(⁠ 🎟 Génération du billet et facture pour ${email} ⁠);
+        if (!data || !data.email) {
+          infoDiv.innerHTML = "⚠️ Impossible de retrouver les infos de commande.";
+          return;
+        }
 
-      // Génération des PDF en mémoire (buffers)
-      const ticketBuffer = await generateTicket(ticketId, buyer, type);
-      const invoiceBuffer = await generateInvoice(invoiceId, buyer, type, price);
-
-      // Envoi du mail via Resend
-      await resend.emails.send({
-        from: "Rave@GVAPaintball <evenement@gvapaintball.com>",
-        to: email,
-        subject: "🎫 Ton billet pour THE LAST",
-        html: `
-          <p>Salut ${firstName},</p>
-          <p>Merci pour ton achat 🎉</p>
-          <p>Voici ton billet et ta facture pour <strong>THE LAST</strong>.</p>
-          <p><strong>Date :</strong> 18 octobre 2025 — dès 19h</p>
-          <p><strong>Lieu :</strong> GVA Paintball, Chemin des Coquelicots 29, 1214 Vernier</p>
-          <p>Présente ton billet à l’entrée pour accéder à la soirée.</p>
-          <p>À très vite 🔥</p>
-        `,
-        attachments: [
-          {
-            filename: ⁠ billet-${ticketId}.pdf ⁠,
-            content: ticketBuffer.toString("base64"),
-          },
-          {
-            filename: ⁠ facture-${invoiceId}.pdf ⁠,
-            content: invoiceBuffer.toString("base64"),
-          },
-        ],
-      });
-
-      console.log(⁠ ✅ Mail envoyé à ${email} ⁠);
-    } catch (err) {
-      console.error("❌ Erreur lors de l'envoi du ticket:", err);
-    }
-  }
-
-  res.status(200).json({ received: true });
-}
+        infoDiv.innerHTML = `
+          <p class="text-green-600 font-semibold">Merci <strong>${data.firstName} ${data.lastName}</strong> 🎉</p>
+          <p class="mt-2">Ton billet et ta facture pour <strong>The Last</strong> ont été envoyés à :</p>
+          <p class="text-green-700 font-bold mt-1">${data.email}</p>
+          <p class="mt-4 text-sm text-gray-500">Date : 18 octobre 2025 — dès 19h00<br>Lieu : GVA Paintball, Genève</p>
+        `;
+      } catch (err) {
+        console.error(err);
+        infoDiv.innerHTML = "⚠️ Erreur lors de la récupération des infos.";
+      }
+    })();
+  </script>
+</body>
+</html>
