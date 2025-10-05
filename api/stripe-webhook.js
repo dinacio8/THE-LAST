@@ -1,14 +1,18 @@
 import Stripe from "stripe";
 import { Resend } from "resend";
 import { buffer } from "micro";
-import { generateTicket, generateInvoice } from "../utils/pdfGenerator.js"; // ✅ chemin corrigé
+import { Pool } from "pg";
+import { generateTicket, generateInvoice } from "../utils/pdfGenerator.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
 
 export const config = {
   api: {
-    bodyParser: false, // Stripe exige un raw body pour signature
+    bodyParser: false, // Stripe exige un raw body
   },
 };
 
@@ -19,40 +23,61 @@ export default async function handler(req, res) {
   }
 
   let event;
-
   try {
     const sig = req.headers["stripe-signature"];
     const buf = await buffer(req);
-
     event = stripe.webhooks.constructEvent(
       buf,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
-    console.error("❌ Erreur de vérification de la signature Stripe:", err.message);
+    console.error("❌ Erreur vérification signature Stripe:", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // ✅ Paiement réussi
+  // ✅ Paiement confirmé
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
+
     const { type, firstName, lastName, address } = session.metadata;
     const email = session.customer_email;
+    const price = type === "VIP" ? 15 : 5;
+
+    const ticketId = `TICKET-${Date.now()}`;
+    const invoiceId = `FAC-2025-10-${Date.now().toString().slice(-4)}`;
+    const buyer = { firstName, lastName, email, address };
+
+    console.log(`🎟 Génération du billet + facture pour ${email}`);
 
     try {
-      const price = type === "VIP" ? 15 : 5;
-      const ticketId = `TICKET-${Date.now()}`;
-      const invoiceId = `FAC-2025-10-${Date.now().toString().slice(-4)}`;
-      const buyer = { firstName, lastName, email, address };
-
-      console.log(`🎟 Génération du billet et de la facture pour ${email}`);
-
-      // Génération des PDF (buffers)
+      // Génération PDF (retourne un buffer)
       const ticketBuffer = await generateTicket(ticketId, buyer, type);
       const invoiceBuffer = await generateInvoice(invoiceId, buyer, type, price);
 
-      // Envoi du mail via Resend
+      // 💾 Enregistrement dans la base de données
+      await pool.query(
+        `INSERT INTO orders
+         (stripe_session_id, ticket_id, invoice_id, type, first_name, last_name, email, address, price, ticket_pdf, invoice_pdf)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        [
+          session.id,
+          ticketId,
+          invoiceId,
+          type,
+          firstName,
+          lastName,
+          email,
+          address,
+          price,
+          ticketBuffer,
+          invoiceBuffer,
+        ]
+      );
+
+      console.log(`✅ Données enregistrées dans la base pour ${email}`);
+
+      // 📧 Envoi du mail via Resend
       await resend.emails.send({
         from: "The Last <evenement@gvapaintball.com>",
         to: email,
@@ -78,9 +103,9 @@ export default async function handler(req, res) {
         ],
       });
 
-      console.log(`✅ Mail envoyé à ${email}`);
+      console.log(`📩 Mail envoyé à ${email}`);
     } catch (err) {
-      console.error("❌ Erreur lors de la génération/envoi du billet:", err);
+      console.error("❌ Erreur lors de l'envoi du ticket/facture:", err);
     }
   }
 
