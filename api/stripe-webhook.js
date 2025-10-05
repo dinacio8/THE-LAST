@@ -31,7 +31,7 @@ export default async function handler(req, res) {
     );
   } catch (err) {
     console.error("❌ Erreur de vérification de la signature Stripe:", err.message);
-    return res.status(400).send(⁠ Webhook Error: ${err.message} ⁠);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   // ✅ Paiement réussi
@@ -42,11 +42,11 @@ export default async function handler(req, res) {
 
     try {
       const price = type === "VIP" ? 15 : 5;
-      const ticketId = ⁠ TICKET-${Date.now()} ⁠;
-      const invoiceId = ⁠ FAC-2025-10-${Date.now().toString().slice(-4)} ⁠;
+      const ticketId = `TICKET-${Date.now()}`;
+      const invoiceId = `FAC-2025-10-${Date.now().toString().slice(-4)}`;
       const buyer = { firstName, lastName, email, address };
 
-      console.log(⁠ 🎟 Génération du billet et de la facture pour ${email} ⁠);
+      console.log(`🎟 Génération du billet et de la facture pour ${email}`);
 
       // Génération des PDF (buffers)
       const ticketBuffer = await generateTicket(ticketId, buyer, type);
@@ -68,17 +68,17 @@ export default async function handler(req, res) {
         `,
         attachments: [
           {
-            filename: ⁠ billet-${ticketId}.pdf ⁠,
+            filename: `billet-${ticketId}.pdf`,
             content: ticketBuffer.toString("base64"),
           },
           {
-            filename: ⁠ facture-${invoiceId}.pdf ⁠,
+            filename: `facture-${invoiceId}.pdf`,
             content: invoiceBuffer.toString("base64"),
           },
         ],
       });
 
-      console.log(⁠ ✅ Mail envoyé à ${email} ⁠);
+      console.log(`✅ Mail envoyé à ${email}`);
     } catch (err) {
       console.error("❌ Erreur lors de la génération/envoi du billet:", err);
     }
