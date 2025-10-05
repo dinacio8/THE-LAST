@@ -1,171 +1,88 @@
-import PDFDocument from "pdfkit";
-import QRCode from "qrcode";
-import fs from "fs";
-import path from "path";
+import Stripe from "stripe";
+import { Resend } from "resend";
+import { buffer } from "micro";
+import { generateTicket, generateInvoice } from "../utils/pdfGenerator.js"; // ✅ chemin corrigé
 
-// ✅ Fonction pour générer un billet (ticket)
-async function generateTicket(ticketId, buyer, type) {
-  return new Promise(async (resolve, reject) => {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+export const config = {
+  api: {
+    bodyParser: false, // Stripe exige un raw body pour signature
+  },
+};
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return res.status(405).end("Méthode non autorisée");
+  }
+
+  let event;
+
+  try {
+    const sig = req.headers["stripe-signature"];
+    const buf = await buffer(req);
+
+    event = stripe.webhooks.constructEvent(
+      buf,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    console.error("❌ Erreur de vérification de la signature Stripe:", err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // ✅ Paiement réussi
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+    const { type, firstName, lastName, address } = session.metadata;
+    const email = session.customer_email;
+
     try {
-      const doc = new PDFDocument({
-        size: [400, 200],
-        margin: 20,
+      const price = type === "VIP" ? 15 : 5;
+      const ticketId = `TICKET-${Date.now()}`;
+      const invoiceId = `FAC-2025-10-${Date.now().toString().slice(-4)}`;
+      const buyer = { firstName, lastName, email, address };
+
+      console.log(`🎟 Génération du billet et de la facture pour ${email}`);
+
+      // Génération des PDF (buffers)
+      const ticketBuffer = await generateTicket(ticketId, buyer, type);
+      const invoiceBuffer = await generateInvoice(invoiceId, buyer, type, price);
+
+      // Envoi du mail via Resend
+      await resend.emails.send({
+        from: "The Last <evenement@gvapaintball.com>",
+        to: email,
+        subject: "🎫 Ton billet pour THE LAST",
+        html: `
+          <p>Salut ${firstName},</p>
+          <p>Merci pour ton achat 🎉</p>
+          <p>Voici ton billet et ta facture pour <strong>THE LAST</strong>.</p>
+          <p><strong>Date :</strong> 18 octobre 2025 — dès 19h</p>
+          <p><strong>Lieu :</strong> GVA Paintball, Chemin des Coquelicots 29, 1214 Vernier</p>
+          <p>Présente ton billet à l’entrée pour accéder à la soirée.</p>
+          <p>À très vite 🔥</p>
+        `,
+        attachments: [
+          {
+            filename: `billet-${ticketId}.pdf`,
+            content: ticketBuffer.toString("base64"),
+          },
+          {
+            filename: `facture-${invoiceId}.pdf`,
+            content: invoiceBuffer.toString("base64"),
+          },
+        ],
       });
 
-      const filePath = path.join("/tmp", ⁠ ticket-${ticketId}.pdf ⁠);
-      const stream = fs.createWriteStream(filePath);
-      doc.pipe(stream);
-
-      // Dégradé vert
-      const gradient = doc.linearGradient(0, 0, 400, 0);
-      gradient.stop(0, "#2ecc71").stop(1, "#27ae60");
-      doc.rect(0, 0, 400, 200).fill(gradient);
-
-      // Logo GVA Paintball
-      const logoPath = path.join(process.cwd(), "terrain_GE_gvapaintball_01.png");
-      if (fs.existsSync(logoPath)) {
-        doc.image(logoPath, 20, 20, { width: 60 });
-      }
-
-      // Titre de l’événement
-      doc
-        .fillColor("white")
-        .fontSize(20)
-        .font("Helvetica-Bold")
-        .text("🎉 THE LAST 🎉", 100, 25);
-
-      // Infos principales
-      doc
-        .fontSize(10)
-        .font("Helvetica")
-        .fillColor("white")
-        .text(⁠ Nom : ${buyer.firstName} ${buyer.lastName} ⁠, 20, 100)
-        .text(⁠ Type : ${type} ⁠, 20, 115)
-        .text(⁠ Adresse : ${buyer.address} ⁠, 20, 130)
-        .text("Date : 18 octobre 2025 dès 19h", 20, 145)
-        .text("Lieu : GVA Paintball, Vernier (Genève)", 20, 160);
-
-      // QR code
-      const qrData = await QRCode.toDataURL(⁠ Ticket ID: ${ticketId} ⁠);
-      const qrImage = qrData.replace(/^data:image\/png;base64,/, "");
-      const qrBuffer = Buffer.from(qrImage, "base64");
-      doc.image(qrBuffer, 300, 90, { width: 70 });
-
-      doc.end();
-
-      stream.on("finish", () => resolve(filePath));
-      stream.on("error", reject);
+      console.log(`✅ Mail envoyé à ${email}`);
     } catch (err) {
-      reject(err);
+      console.error("❌ Erreur lors de la génération/envoi du billet:", err);
     }
-  });
+  }
+
+  res.status(200).json({ received: true });
 }
-
-// ✅ Fonction pour générer une facture
-async function generateInvoice(invoiceId, buyer, type, price) {
-  return new Promise((resolve, reject) => {
-    try {
-      const doc = new PDFDocument({ margin: 40 });
-      const filePath = path.join("/tmp", ⁠ invoice-${invoiceId}.pdf ⁠);
-      const stream = fs.createWriteStream(filePath);
-      doc.pipe(stream);
-
-      // Logo + En-tête
-      const logoPath = path.join(process.cwd(), "terrain_GE_gvapaintball_01.png");
-      if (fs.existsSync(logoPath)) {
-        doc.image(logoPath, 40, 30, { width: 80 });
-      }
-
-      doc
-        .fontSize(18)
-        .fillColor("#27ae60")
-        .font("Helvetica-Bold")
-        .text("FACTURE", 400, 40, { align: "right" });
-
-      // Infos société
-      doc
-        .fontSize(10)
-        .fillColor("#333")
-        .font("Helvetica")
-        .text("GVA Paintball", 40, 120)
-        .text("Chemin des Coquelicots 29", 40, 135)
-        .text("1214 Vernier, Suisse", 40, 150)
-        .moveDown();
-
-      // Infos client
-      doc.text(⁠ Facturé à : ⁠, 300, 120, { align: "left" });
-      doc.text(⁠ ${buyer.firstName} ${buyer.lastName} ⁠, 300, 135);
-      doc.text(buyer.address, 300, 150);
-      doc.text(buyer.email, 300, 165);
-
-      // Ligne séparatrice
-      doc.moveTo(40, 200).lineTo(550, 200).strokeColor("#ccc").stroke();
-
-      // Détails facture
-      doc
-        .fontSize(12)
-        .font("Helvetica-Bold")
-        .fillColor("#000")
-        .text(⁠ Facture n° : ${invoiceId} ⁠, 40, 220)
-        .text(⁠ Date : ${new Date().toLocaleDateString("fr-CH")} ⁠, 40, 240)
-        .moveDown();
-
-      // Tableau des articles
-      const totalHT = price;
-      const tva = totalHT * 0.077;
-      const totalTTC = totalHT + tva;
-
-      doc
-        .fontSize(10)
-        .font("Helvetica")
-        .fillColor("#000")
-        .text("Description", 40, 280)
-        .text("Quantité", 250, 280)
-        .text("Prix (CHF)", 350, 280)
-        .text("Total (CHF)", 450, 280)
-        .moveTo(40, 295)
-        .lineTo(550, 295)
-        .strokeColor("#ccc")
-        .stroke();
-
-      doc
-        .text(⁠ Billet ${type} ⁠, 40, 310)
-        .text("1", 250, 310)
-        .text(price.toFixed(2), 350, 310)
-        .text(price.toFixed(2), 450, 310);
-
-      // Totaux
-      doc
-        .font("Helvetica-Bold")
-        .text("Sous-total", 350, 350)
-        .text(totalHT.toFixed(2), 450, 350)
-        .font("Helvetica")
-        .text("TVA (7.7%)", 350, 365)
-        .text(tva.toFixed(2), 450, 365)
-        .font("Helvetica-Bold")
-        .text("TOTAL TTC", 350, 385)
-        .text(totalTTC.toFixed(2), 450, 385);
-
-      // Pied de page
-      doc
-        .fontSize(9)
-        .fillColor("#555")
-        .text(
-          "Merci pour votre confiance ! Le paiement a été reçu via Stripe. Cette facture vaut reçu.",
-          40,
-          450,
-          { width: 500, align: "center" }
-        );
-
-      doc.end();
-
-      stream.on("finish", () => resolve(filePath));
-      stream.on("error", reject);
-    } catch (err) {
-      reject(err);
-    }
-  });
-}
-
-// ✅ Export compatible ESM
-export { generateTicket, generateInvoice };
