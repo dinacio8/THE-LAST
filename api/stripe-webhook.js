@@ -51,11 +51,11 @@ export default async function handler(req, res) {
     console.log(`🎟 Génération du billet + facture pour ${email}`);
 
     try {
-      // Génération PDF (retourne un buffer)
+      // 1️⃣ Génération PDF (retourne un buffer)
       const ticketBuffer = await generateTicket(ticketId, buyer, type);
       const invoiceBuffer = await generateInvoice(invoiceId, buyer, type, price);
 
-      // 💾 Enregistrement dans la base de données
+      // 2️⃣ Enregistrement dans la base (avant envoi du mail)
       await pool.query(
         `INSERT INTO orders
          (stripe_session_id, ticket_id, invoice_id, type, first_name, last_name, email, address, price, ticket_pdf, invoice_pdf)
@@ -75,9 +75,9 @@ export default async function handler(req, res) {
         ]
       );
 
-      console.log(`✅ Données enregistrées dans la base pour ${email}`);
+      console.log(`💾 Données et PDFs stockés en base pour ${email}`);
 
-      // 📧 Envoi du mail via Resend
+      // 3️⃣ Envoi du mail via Resend
       await resend.emails.send({
         from: "The Last <evenement@gvapaintball.com>",
         to: email,
@@ -103,11 +103,18 @@ export default async function handler(req, res) {
         ],
       });
 
-      console.log(`📩 Mail envoyé à ${email}`);
+      // 4️⃣ Mise à jour du champ sent_at après envoi
+      await pool.query(
+        `UPDATE orders SET sent_at = NOW() WHERE stripe_session_id = $1`,
+        [session.id]
+      );
+
+      console.log(`📩 Mail envoyé à ${email} et commande marquée comme "envoyée"`);
     } catch (err) {
-      console.error("❌ Erreur lors de l'envoi du ticket/facture:", err);
+      console.error("❌ Erreur lors du traitement:", err);
     }
   }
 
   res.status(200).json({ received: true });
 }
+
