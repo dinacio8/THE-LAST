@@ -1,118 +1,71 @@
 <!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Admin – THE LAST</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { font-family: 'Inter', sans-serif; }
-    .hidden { display: none; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin - THE LAST</title>
+<script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-50 min-h-screen">
-
-  <div id="loginScreen" class="flex items-center justify-center h-screen bg-gradient-to-br from-green-500 to-yellow-400">
-    <div class="bg-white p-10 rounded-xl shadow-xl w-96 text-center">
-      <h1 class="text-2xl font-bold mb-4 text-green-600">🔐 Accès Admin</h1>
-      <input id="passwordInput" type="password" placeholder="Mot de passe"
-             class="border border-gray-300 rounded-md w-full p-2 mb-4 text-center focus:ring-2 focus:ring-green-400 outline-none">
-      <button id="loginBtn" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-md w-full">
-        Se connecter
-      </button>
-      <p id="errorMsg" class="text-red-500 text-sm mt-3 hidden">Mot de passe incorrect</p>
-    </div>
+<body class="bg-gray-50 text-gray-900">
+<header class="bg-white shadow p-4 flex justify-between items-center sticky top-0 z-50">
+  <div class="flex items-center gap-3">
+    <img src="terrain_GE_gvapaintball_01.png" class="h-10" alt="logo">
+    <h1 class="text-2xl font-bold text-green-600">ADMIN - THE LAST</h1>
   </div>
+  <button id="exportExcel" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md">
+    📊 Export Excel
+  </button>
+</header>
 
-  <div id="dashboard" class="hidden p-6">
-    <h1 class="text-3xl font-bold text-green-600 mb-6">📊 Tableau de bord – THE LAST</h1>
+<main class="p-6 overflow-x-auto">
+  <table class="min-w-full bg-white border border-gray-200 rounded-lg shadow-sm">
+    <thead class="bg-green-600 text-white">
+      <tr>
+        <th class="py-2 px-3">ID</th>
+        <th class="py-2 px-3">Nom</th>
+        <th class="py-2 px-3">Email</th>
+        <th class="py-2 px-3">Type</th>
+        <th class="py-2 px-3">Prix</th>
+        <th class="py-2 px-3">Statut</th>
+        <th class="py-2 px-3">Date</th>
+        <th class="py-2 px-3">Billet</th>
+        <th class="py-2 px-3">Facture</th>
+      </tr>
+    </thead>
+    <tbody id="ordersBody" class="divide-y divide-gray-100 text-sm"></tbody>
+  </table>
+</main>
 
-    <div class="flex flex-col md:flex-row justify-between items-center mb-6">
-      <input id="searchInput" type="text" placeholder="Rechercher par nom ou email..."
-             class="border border-gray-300 rounded-md p-2 w-full md:w-1/3 focus:ring-2 focus:ring-green-400 outline-none">
-      <p class="text-lg text-gray-700 mt-4 md:mt-0">
-        Total ventes : <strong id="totalSales" class="text-green-600">0 CHF</strong>
-      </p>
-    </div>
+<script>
+async function loadOrders() {
+  const res = await fetch("/api/admin-orders");
+  const data = await res.json();
+  const tbody = document.getElementById("ordersBody");
 
-    <div class="overflow-x-auto bg-white shadow-lg rounded-lg">
-      <table class="w-full text-left border-collapse">
-        <thead class="bg-green-600 text-white">
-          <tr>
-            <th class="py-3 px-4">#</th>
-            <th class="py-3 px-4">Nom</th>
-            <th class="py-3 px-4">Email</th>
-            <th class="py-3 px-4">Type</th>
-            <th class="py-3 px-4">Prix</th>
-            <th class="py-3 px-4">Date</th>
-            <th class="py-3 px-4 text-center">Billet</th>
-            <th class="py-3 px-4 text-center">Facture</th>
-          </tr>
-        </thead>
-        <tbody id="ordersTable"></tbody>
-      </table>
-    </div>
-  </div>
+  tbody.innerHTML = data.map(order => `
+    <tr>
+      <td class="py-2 px-3 text-center">${order.id}</td>
+      <td class="py-2 px-3">${order.first_name} ${order.last_name}</td>
+      <td class="py-2 px-3">${order.email}</td>
+      <td class="py-2 px-3 text-center">${order.type}</td>
+      <td class="py-2 px-3 text-center">${order.price} CHF</td>
+      <td class="py-2 px-3 text-center">${order.status}</td>
+      <td class="py-2 px-3 text-center">${new Date(order.created_at).toLocaleString("fr-CH")}</td>
+      <td class="py-2 px-3 text-center">
+        <a href="/api/download-pdf?id=${order.id}&type=ticket" class="text-green-600 hover:underline">🎟</a>
+      </td>
+      <td class="py-2 px-3 text-center">
+        <a href="/api/download-pdf?id=${order.id}&type=invoice" class="text-yellow-600 hover:underline">📄</a>
+      </td>
+    </tr>
+  `).join("");
+}
 
-  <script>
-    const ADMIN_KEY = "GvaPaintball2025.";
+document.getElementById("exportExcel").addEventListener("click", () => {
+  window.location.href = "/api/export-orders";
+});
 
-    const loginScreen = document.getElementById("loginScreen");
-    const dashboard = document.getElementById("dashboard");
-    const loginBtn = document.getElementById("loginBtn");
-    const passwordInput = document.getElementById("passwordInput");
-    const errorMsg = document.getElementById("errorMsg");
-
-    loginBtn.addEventListener("click", async () => {
-      const password = passwordInput.value.trim();
-      if (password === ADMIN_KEY) {
-        loginScreen.classList.add("hidden");
-        dashboard.classList.remove("hidden");
-        loadOrders();
-      } else {
-        errorMsg.classList.remove("hidden");
-      }
-    });
-
-    async function loadOrders() {
-      const res = await fetch(`/api/admin-orders?key=${ADMIN_KEY}`);
-      const orders = await res.json();
-      const table = document.getElementById("ordersTable");
-      const totalSales = document.getElementById("totalSales");
-      const searchInput = document.getElementById("searchInput");
-
-      let total = 0;
-      const render = (filter = "") => {
-        table.innerHTML = "";
-        let filtered = orders.filter(o =>
-          `${o.first_name} ${o.last_name} ${o.email}`.toLowerCase().includes(filter.toLowerCase())
-        );
-        for (const o of filtered) {
-          total += parseFloat(o.price);
-          const row = document.createElement("tr");
-          row.className = "border-b hover:bg-green-50";
-          row.innerHTML = `
-            <td class="py-2 px-4">${o.id}</td>
-            <td class="py-2 px-4">${o.first_name} ${o.last_name}</td>
-            <td class="py-2 px-4">${o.email}</td>
-            <td class="py-2 px-4">${o.type}</td>
-            <td class="py-2 px-4 font-semibold">${o.price} CHF</td>
-            <td class="py-2 px-4">${new Date(o.created_at).toLocaleString("fr-CH")}</td>
-            <td class="py-2 px-4 text-center">
-              <a href="/api/get-pdf?type=ticket&id=${o.ticket_id}&key=${ADMIN_KEY}" target="_blank" class="text-green-600 font-bold">🎟</a>
-            </td>
-            <td class="py-2 px-4 text-center">
-              <a href="/api/get-pdf?type=invoice&id=${o.invoice_id}&key=${ADMIN_KEY}" target="_blank" class="text-blue-600 font-bold">📄</a>
-            </td>
-          `;
-          table.appendChild(row);
-        }
-        totalSales.textContent = `${filtered.reduce((acc, o) => acc + parseFloat(o.price), 0)} CHF`;
-      };
-
-      render();
-      searchInput.addEventListener("input", (e) => render(e.target.value));
-    }
-  </script>
+loadOrders();
+</script>
 </body>
 </html>
