@@ -34,8 +34,8 @@ export default async function handler(req, res) {
     const price = type === "VIP" ? 15 : 5;
 
     try {
-      const ticketId = `TICKET-${Date.now()}`;
-      const invoiceId = `FAC-2025-10-${Date.now().toString().slice(-4)}`;
+      const ticketId = await generateNextId("ticket");
+      const invoiceId = await generateNextId("invoice");
       const buyer = { firstName, lastName, email, address };
 
       console.log(`🎟 Génération du billet et facture pour ${email}`);
@@ -96,4 +96,5 @@ export default async function handler(req, res) {
 
   res.status(200).json({ received: true });
 }
+
 
