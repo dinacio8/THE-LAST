@@ -7,9 +7,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const config = {
-  api: {
-    bodyParser: false, // Stripe demande un raw body pour signature
-  },
+  api: { bodyParser: false }, // Stripe exige un raw body
 };
 
 export default async function handler(req, res) {
@@ -22,7 +20,6 @@ export default async function handler(req, res) {
   try {
     const sig = req.headers["stripe-signature"];
     const buf = await buffer(req);
-
     event = stripe.webhooks.constructEvent(
       buf,
       sig,
@@ -47,11 +44,10 @@ export default async function handler(req, res) {
 
       console.log(⁠ 🎟 Génération du billet et facture pour ${email} ⁠);
 
-      // Génération des PDF en mémoire (buffers)
+      // Génération des PDF
       const ticketBuffer = await generateTicket(ticketId, buyer, type);
       const invoiceBuffer = await generateInvoice(invoiceId, buyer, type, price);
 
-      // Envoi du mail via Resend
       await resend.emails.send({
         from: "The Last <evenement@gvapaintball.com>",
         to: email,
