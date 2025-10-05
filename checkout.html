@@ -1,98 +1,88 @@
 <!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Paiement sécurisé - The Last</title>
-  <meta name="description" content="Paiement sécurisé pour The Last, samedi 18 octobre 2025 dès 19h à Genève.">
-  <link rel="icon" href="terrain_GE_gvapaintball_01.png" type="image/png">
-  <script src="https://cdn.tailwindcss.com"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Paiement sécurisé - The Last</title>
+<meta name="description" content="Paiement sécurisé pour The Last, samedi 18 octobre 2025 dès 19h à Genève.">
+<script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 text-gray-900 flex flex-col min-h-screen">
 
-  <!-- HEADER -->
-  <header class="bg-white shadow fixed top-0 w-full z-50">
-    <div class="max-w-6xl mx-auto flex justify-between items-center p-4">
-      <a href="/index.html" class="flex items-center gap-4">
-        <img src="terrain_GE_gvapaintball_01.png" alt="Logo GVA Paintball"
-             class="h-10 md:h-16 lg:h-20 object-contain">
-        <span class="font-bold text-green-600 text-lg md:text-2xl">The Last</span>
-      </a>
-    </div>
-  </header>
+<!-- HEADER -->
+<header class="bg-white shadow p-4 flex justify-between items-center">
+<a href="/index.html" class="flex items-center gap-3">
+<img src="terrain_GE_gvapaintball_01.png" alt="Logo GVA Paintball" class="h-10">
+<span class="text-2xl font-bold text-green-600">The Last</span>
+</a>
+</header>
 
-  <!-- MAIN -->
-  <main class="flex-1 flex justify-center items-center px-4 pt-28">
-    <div class="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-      <h1 class="text-2xl font-bold text-green-600 mb-6 text-center">Paiement sécurisé</h1>
-      <p class="text-sm text-gray-600 mb-6 text-center">
-        💳 Paiement sécurisé par carte, Apple Pay, Google Pay et Twint
-      </p>
+<!-- MAIN -->
+<main class="flex flex-col items-center justify-center flex-1 p-8">
+<div class="bg-white shadow-xl rounded-xl p-8 max-w-md w-full">
+<h1 class="text-2xl font-bold text-green-600 text-center mb-4">Paiement sécurisé</h1>
+<p class="text-center text-gray-500 mb-6">
+💳 Paiement sécurisé par carte, Apple Pay, Google Pay et Twint
+</p>
 
-      <!-- FORMULAIRE -->
-      <form id="checkoutForm" class="space-y-4">
-        <input type="text" id="firstName" placeholder="Prénom" required
-          class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-green-500">
-        <input type="text" id="lastName" placeholder="Nom" required
-          class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-green-500">
-        <input type="text" id="address" placeholder="Adresse complète" required
-          class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-green-500">
-        <input type="email" id="email" placeholder="Email" required
-          class="w-full border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-green-500">
+<form id="checkoutForm" class="space-y-4">
+<input type="text" id="firstName" placeholder="Prénom" required
+class="w-full border border-gray-300 rounded-md p-2">
+<input type="text" id="lastName" placeholder="Nom" required
+class="w-full border border-gray-300 rounded-md p-2">
+<input type="text" id="address" placeholder="Adresse complète" required
+class="w-full border border-gray-300 rounded-md p-2">
+<input type="email" id="email" placeholder="Email" required
+class="w-full border border-gray-300 rounded-md p-2">
 
-        <button type="submit"
-          class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg">
-          Confirmer le paiement
-        </button>
-      </form>
-    </div>
-  </main>
+<button type="submit"
+class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg">
+Confirmer le paiement
+</button>
+</form>
+</div>
+</main>
 
-  <!-- FOOTER -->
-  <footer class="bg-gray-100 p-6 text-center text-sm text-gray-500">
-    © 2025 The Last — Tous droits réservés
-  </footer>
+<!-- FOOTER -->
+<footer class="bg-gray-100 p-6 text-center text-sm text-gray-500">
+© 2025 The Last — Tous droits réservés
+</footer>
 
-  <!-- SCRIPT -->
-  <script>
-    document.getElementById("checkoutForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
+<script>
+document.getElementById("checkoutForm").addEventListener("submit", async (e) => {
+e.preventDefault();
 
-      const data = {
-        firstName: document.getElementById("firstName").value,
-        lastName: document.getElementById("lastName").value,
-        address: document.getElementById("address").value,
-        email: document.getElementById("email").value,
-        type: new URLSearchParams(window.location.search).get("type") || "INDIVIDUEL"
-      };
+const orderData = {
+firstName: document.getElementById("firstName").value,
+lastName: document.getElementById("lastName").value,
+address: document.getElementById("address").value,
+email: document.getElementById("email").value,
+type: new URLSearchParams(window.location.search).get("type") || "INDIVIDUEL"
+};
 
-      // ✅ Essai de sauvegarde dans localStorage
-      try {
-        localStorage.setItem("orderData", JSON.stringify(data));
-        console.log("💾 Infos commande stockées dans localStorage");
-      } catch (err) {
-        console.warn("⚠️ Impossible de stocker orderData:", err);
-      }
+try {
+const response = await fetch("/api/checkout-session", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify(orderData)
+});
 
-      // ✅ Création de la session Stripe
-      try {
-        const response = await fetch("/api/checkout-session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-        });
+const session = await response.json();
 
-        const result = await response.json();
-        if (result.url) {
-          window.location.href = result.url; // redirection Stripe
-        } else {
-          alert("Erreur lors de la création du paiement.");
-        }
-      } catch (err) {
-        console.error("❌ Erreur API checkout-session:", err);
-        alert("Erreur de communication avec le serveur.");
-      }
-    });
-  </script>
+if (!response.ok) {
+alert("Erreur lors de la création de la session Stripe.");
+console.error(session);
+return;
+}
+
+// 🔥 Redirige vers la page Stripe hébergée
+window.location.href = session.url;
+
+} catch (err) {
+console.error("Erreur de communication avec le serveur:", err);
+alert("Erreur de communication avec le serveur.");
+}
+});
+</script>
 </body>
 </html>
