@@ -1,71 +1,87 @@
-<!doctype html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Paiement confirmé - The Last</title>
-  <meta name="description" content="Ton paiement pour The Last est confirmé ! Reçois ton billet et ta facture par email.">
-  <link rel="icon" href="terrain_GE_gvapaintball_01.png" type="image/png">
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-50 text-gray-900 flex flex-col min-h-screen">
+import Stripe from "stripe";
+import { Resend } from "resend";
+import { buffer } from "micro";
+import { generateTicket, generateInvoice } from "../../utils/pdfGenerator.js";
 
-  <!-- HEADER -->
-  <header class="bg-white shadow fixed top-0 w-full z-50">
-    <div class="max-w-6xl mx-auto flex justify-between items-center p-4">
-      <a href="/index.html" class="flex items-center gap-4">
-        <img src="terrain_GE_gvapaintball_01.png" alt="Logo GVA Paintball"
-             class="h-10 md:h-16 lg:h-20 object-contain">
-        <span class="font-bold text-green-600 text-lg md:text-2xl">The Last</span>
-      </a>
-    </div>
-  </header>
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-  <!-- MAIN -->
-  <main class="flex-1 flex flex-col justify-center items-center text-center px-4 pt-24">
-    <h1 class="text-4xl font-bold text-green-600 mb-6">✅ Paiement confirmé !</h1>
-    <p class="text-lg md:text-xl max-w-2xl mb-6">
-      Merci pour ton achat 🎉 Ton billet et ta facture pour <strong>The Last</strong> vont être envoyés à ton adresse email 📩.
-    </p>
-    <p id="statusMsg" class="text-gray-600 mb-8">
-      ⏳ Envoi en cours...
-    </p>
-    <a href="/index.html" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg">
-      Retour à l’accueil
-    </a>
-  </main>
+export const config = {
+  api: {
+    bodyParser: false, // Stripe demande un raw body pour signature
+  },
+};
 
-  <!-- FOOTER -->
-  <footer class="bg-gray-100 p-6 text-center text-sm text-gray-500">
-    © 2025 The Last — Tous droits réservés
-  </footer>
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return res.status(405).end("Méthode non autorisée");
+  }
 
-  <!-- SCRIPT -->
-  <script>
-    const orderData = JSON.parse(localStorage.getItem("orderData"));
+  let event;
+  try {
+    const sig = req.headers["stripe-signature"];
+    const buf = await buffer(req);
 
-    if (orderData) {
-      fetch("/api/send-ticket", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderData),
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          document.getElementById("statusMsg").textContent = "📩 Mail envoyé avec succès ! Vérifie ta boîte mail.";
-          localStorage.removeItem("orderData");
-        } else {
-          document.getElementById("statusMsg").textContent = "⚠️ Problème lors de l’envoi du mail. Contacte-nous si tu ne reçois rien.";
-        }
-      })
-      .catch(err => {
-        console.error("❌ Erreur envoi:", err);
-        document.getElementById("statusMsg").textContent = "❌ Erreur technique lors de l’envoi du billet.";
+    event = stripe.webhooks.constructEvent(
+      buf,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    console.error("❌ Erreur vérification signature Stripe:", err.message);
+    return res.status(400).send(⁠ Webhook Error: ${err.message} ⁠);
+  }
+
+  // ✅ Paiement confirmé
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+    const { type, firstName, lastName, address } = session.metadata;
+    const email = session.customer_email;
+
+    try {
+      const price = type === "VIP" ? 15 : 5;
+      const ticketId = ⁠ TICKET-${Date.now()} ⁠;
+      const invoiceId = ⁠ FAC-2025-10-${Date.now().toString().slice(-4)} ⁠;
+      const buyer = { firstName, lastName, email, address };
+
+      console.log(⁠ 🎟 Génération du billet et facture pour ${email} ⁠);
+
+      // Génération des PDF en mémoire (buffers)
+      const ticketBuffer = await generateTicket(ticketId, buyer, type);
+      const invoiceBuffer = await generateInvoice(invoiceId, buyer, type, price);
+
+      // Envoi du mail via Resend
+      await resend.emails.send({
+        from: "Rave@GVAPaintball <evenement@gvapaintball.com>",
+        to: email,
+        subject: "🎫 Ton billet pour THE LAST",
+        html: `
+          <p>Salut ${firstName},</p>
+          <p>Merci pour ton achat 🎉</p>
+          <p>Voici ton billet et ta facture pour <strong>THE LAST</strong>.</p>
+          <p><strong>Date :</strong> 18 octobre 2025 — dès 19h</p>
+          <p><strong>Lieu :</strong> GVA Paintball, Chemin des Coquelicots 29, 1214 Vernier</p>
+          <p>Présente ton billet à l’entrée pour accéder à la soirée.</p>
+          <p>À très vite 🔥</p>
+        `,
+        attachments: [
+          {
+            filename: ⁠ billet-${ticketId}.pdf ⁠,
+            content: ticketBuffer.toString("base64"),
+          },
+          {
+            filename: ⁠ facture-${invoiceId}.pdf ⁠,
+            content: invoiceBuffer.toString("base64"),
+          },
+        ],
       });
-    } else {
-      document.getElementById("statusMsg").textContent = "⚠️ Impossible de retrouver les infos de commande.";
+
+      console.log(⁠ ✅ Mail envoyé à ${email} ⁠);
+    } catch (err) {
+      console.error("❌ Erreur lors de l'envoi du ticket:", err);
     }
-  </script>
-</body>
-</html>
+  }
+
+  res.status(200).json({ received: true });
+}
