@@ -21,7 +21,7 @@ export default async function handler(req, res) {
 
       // Envoi email via Resend
       await resend.emails.send({
-        from: "Rave@GVAPaintball <confirmation@dias-lab.ch>",
+        from: "The Last <evenement@gvapaintball.com>",
         to: email,
         subject: `Ton billet pour THE LAST (${type})`,
         html: `
@@ -57,3 +57,4 @@ export default async function handler(req, res) {
     res.status(405).end("Méthode non autorisée");
   }
 }
+
