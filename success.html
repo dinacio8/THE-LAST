@@ -1,74 +1,80 @@
 <!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Paiement confirmé - The Last</title>
-  <meta name="description" content="Paiement confirmé pour The Last @ GVA Paintball. Ton billet et ta facture ont été envoyés par email.">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Paiement réussi - The Last</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 text-gray-900 flex flex-col min-h-screen">
 
-  <!-- HEADER -->
   <header class="bg-white shadow p-4 flex justify-between items-center">
     <a href="/index.html" class="flex items-center gap-3">
-      <img src="terrain_GE_gvapaintball_01.png" alt="Logo GVA Paintball" class="h-10">
+      <img src="/terrain_GE_gvapaintball_01.png" alt="Logo" class="h-10">
       <span class="text-2xl font-bold text-green-600">The Last</span>
     </a>
   </header>
 
-  <!-- MAIN -->
-  <main class="flex-1 flex flex-col justify-center items-center text-center p-8">
-    <div class="bg-white shadow-xl rounded-xl p-8 max-w-lg w-full">
-      <h1 class="text-3xl font-bold text-green-600 mb-4">✅ Paiement confirmé !</h1>
-      <div id="order-info" class="text-gray-700 text-lg">
-        <p>Chargement des informations de commande...</p>
-      </div>
-      <a href="/index.html"
-         class="inline-block mt-8 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg">
-        Retour à l’accueil
-      </a>
+  <main class="flex flex-col items-center justify-center flex-1 p-6 text-center">
+    <h1 class="text-3xl font-bold text-green-600 mb-6">🎉 Paiement confirmé !</h1>
+    <p id="statusMsg" class="text-lg text-gray-700">Chargement des informations...</p>
+    <div id="details" class="hidden mt-6 bg-white shadow-lg rounded-lg p-6 max-w-md text-left">
+      <p><strong>Nom :</strong> <span id="name"></span></p>
+      <p><strong>Type de billet :</strong> <span id="type"></span></p>
+      <p><strong>Prix :</strong> <span id="price"></span> CHF</p>
+      <p><strong>Email :</strong> <span id="email"></span></p>
+      <p><strong>Facture :</strong> <span id="invoice"></span></p>
+      <p><strong>Ticket :</strong> <span id="ticket"></span></p>
+      <p><strong>Statut :</strong> <span id="sent"></span></p>
     </div>
+
+    <a href="/index.html" class="mt-8 inline-block bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg">
+      Retour à l'accueil
+    </a>
   </main>
 
-  <!-- FOOTER -->
   <footer class="bg-gray-100 p-6 text-center text-sm text-gray-500">
-    ©️ 2025 The Last — Tous droits réservés
+    © 2025 The Last — Tous droits réservés
   </footer>
 
-  <!-- SCRIPT -->
   <script>
-    (async () => {
+    async function loadStatus() {
       const params = new URLSearchParams(window.location.search);
-      const sessionId = params.get("session_id");
+      const session_id = params.get("session_id");
 
-      const infoDiv = document.getElementById("order-info");
-
-      if (!sessionId) {
-        infoDiv.innerHTML = "⚠️ Impossible de retrouver la session de paiement.";
+      if (!session_id) {
+        document.getElementById("statusMsg").textContent = "❌ Impossible de retrouver les infos de commande.";
         return;
       }
 
       try {
-        const res = await fetch(⁠ /api/tickets?session_id=${sessionId} ⁠);
+        const res = await fetch(`/api/order-status?session_id=${session_id}`);
         const data = await res.json();
 
-        if (!data || !data.email) {
-          infoDiv.innerHTML = "⚠️ Impossible de retrouver les infos de commande.";
+        if (!res.ok) {
+          document.getElementById("statusMsg").textContent = "❌ Commande introuvable ou erreur serveur.";
+          console.error(data);
           return;
         }
 
-        infoDiv.innerHTML = `
-          <p class="text-green-600 font-semibold">Merci <strong>${data.firstName} ${data.lastName}</strong> 🎉</p>
-          <p class="mt-2">Ton billet et ta facture pour <strong>The Last</strong> ont été envoyés à :</p>
-          <p class="text-green-700 font-bold mt-1">${data.email}</p>
-          <p class="mt-4 text-sm text-gray-500">Date : 18 octobre 2025 — dès 19h00<br>Lieu : GVA Paintball, Genève</p>
-        `;
+        document.getElementById("statusMsg").classList.add("hidden");
+        document.getElementById("details").classList.remove("hidden");
+
+        document.getElementById("name").textContent = `${data.firstName} ${data.lastName}`;
+        document.getElementById("type").textContent = data.type;
+        document.getElementById("price").textContent = data.price;
+        document.getElementById("email").textContent = data.email;
+        document.getElementById("invoice").textContent = data.invoice;
+        document.getElementById("ticket").textContent = data.ticket;
+        document.getElementById("sent").textContent = data.status === "sent" ? "✅ Envoyé" : "⏳ En cours d’envoi";
+
       } catch (err) {
-        console.error(err);
-        infoDiv.innerHTML = "⚠️ Erreur lors de la récupération des infos.";
+        console.error("Erreur communication API:", err);
+        document.getElementById("statusMsg").textContent = "⚠️ Erreur de communication avec le serveur.";
       }
-    })();
+    }
+
+    loadStatus();
   </script>
 </body>
 </html>
