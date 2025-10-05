@@ -1,19 +1,14 @@
 import Stripe from "stripe";
 import { Resend } from "resend";
 import { buffer } from "micro";
-import { Pool } from "pg";
+import { pool } from "../lib/db.js";
 import { generateTicket, generateInvoice } from "../utils/pdfGenerator.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
 
 export const config = {
-  api: {
-    bodyParser: false, // Stripe exige un raw body
-  },
+  api: { bodyParser: false },
 };
 
 export default async function handler(req, res) {
@@ -26,58 +21,54 @@ export default async function handler(req, res) {
   try {
     const sig = req.headers["stripe-signature"];
     const buf = await buffer(req);
-    event = stripe.webhooks.constructEvent(
-      buf,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
+    event = stripe.webhooks.constructEvent(buf, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-    console.error("❌ Erreur vérification signature Stripe:", err.message);
+    console.error("❌ Erreur vérif signature Stripe:", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // ✅ Paiement confirmé
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-
     const { type, firstName, lastName, address } = session.metadata;
     const email = session.customer_email;
     const price = type === "VIP" ? 15 : 5;
 
-    const ticketId = `TICKET-${Date.now()}`;
-    const invoiceId = `FAC-2025-10-${Date.now().toString().slice(-4)}`;
-    const buyer = { firstName, lastName, email, address };
-
-    console.log(`🎟 Génération du billet + facture pour ${email}`);
-
     try {
-      // 1️⃣ Génération PDF (retourne un buffer)
+      const ticketId = `TICKET-${Date.now()}`;
+      const invoiceId = `FAC-2025-10-${Date.now().toString().slice(-4)}`;
+      const buyer = { firstName, lastName, email, address };
+
+      console.log(`🎟 Génération du billet et facture pour ${email}`);
+
       const ticketBuffer = await generateTicket(ticketId, buyer, type);
       const invoiceBuffer = await generateInvoice(invoiceId, buyer, type, price);
 
-      // 2️⃣ Enregistrement dans la base (avant envoi du mail)
-      await pool.query(
-        `INSERT INTO orders
-         (stripe_session_id, ticket_id, invoice_id, type, first_name, last_name, email, address, price, ticket_pdf, invoice_pdf)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-        [
-          session.id,
-          ticketId,
-          invoiceId,
-          type,
-          firstName,
-          lastName,
-          email,
-          address,
-          price,
-          ticketBuffer,
-          invoiceBuffer,
-        ]
-      );
+      // ✅ Insertion dans la base Neon
+      const query = `
+        INSERT INTO orders
+          (stripe_session_id, ticket_id, invoice_id, type, first_name, last_name, email, address, price, ticket_pdf, invoice_pdf, status)
+        VALUES
+          ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'sent')
+        ON CONFLICT (stripe_session_id) DO NOTHING
+      `;
 
-      console.log(`💾 Données et PDFs stockés en base pour ${email}`);
+      await pool.query(query, [
+        session.id,
+        ticketId,
+        invoiceId,
+        type,
+        firstName,
+        lastName,
+        email,
+        address,
+        price,
+        ticketBuffer,
+        invoiceBuffer
+      ]);
 
-      // 3️⃣ Envoi du mail via Resend
+      console.log("✅ Enregistré dans la base Neon avec succès");
+
+      // ✅ Envoi du mail via Resend
       await resend.emails.send({
         from: "The Last <evenement@gvapaintball.com>",
         to: email,
@@ -92,26 +83,14 @@ export default async function handler(req, res) {
           <p>À très vite 🔥</p>
         `,
         attachments: [
-          {
-            filename: `billet-${ticketId}.pdf`,
-            content: ticketBuffer.toString("base64"),
-          },
-          {
-            filename: `facture-${invoiceId}.pdf`,
-            content: invoiceBuffer.toString("base64"),
-          },
+          { filename: `billet-${ticketId}.pdf`, content: ticketBuffer.toString("base64") },
+          { filename: `facture-${invoiceId}.pdf`, content: invoiceBuffer.toString("base64") },
         ],
       });
 
-      // 4️⃣ Mise à jour du champ sent_at après envoi
-      await pool.query(
-        `UPDATE orders SET sent_at = NOW() WHERE stripe_session_id = $1`,
-        [session.id]
-      );
-
-      console.log(`📩 Mail envoyé à ${email} et commande marquée comme "envoyée"`);
+      console.log(`📩 Mail envoyé à ${email}`);
     } catch (err) {
-      console.error("❌ Erreur lors du traitement:", err);
+      console.error("❌ Erreur traitement commande:", err);
     }
   }
 
