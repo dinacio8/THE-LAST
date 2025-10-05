@@ -1,52 +1,39 @@
-import mysql from "mysql2/promise";
+import { pool } from "../lib/db.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
-    return res.status(405).json({ error: "Méthode non autorisée" });
+    res.setHeader("Allow", "GET");
+    return res.status(405).end("Méthode non autorisée");
   }
 
-  const { session_id } = req.query;
+  const sessionId = req.query.session_id;
 
-  if (!session_id) {
-    return res.status(400).json({ error: "session_id manquant" });
+  if (!sessionId) {
+    return res.status(400).json({ error: "Paramètre session_id manquant" });
   }
 
   try {
-    const connection = await mysql.createConnection({
-      host: process.env.DB_HOST,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASS,
-      database: process.env.DB_NAME,
-    });
-
-    // 🔍 On cherche la commande correspondant à la session Stripe
-    const [rows] = await connection.execute(
-      "SELECT * FROM orders WHERE session_id = ?",
-      [session_id]
+    const result = await pool.query(
+      "SELECT first_name, last_name, email, type, price, status, created_at FROM orders WHERE stripe_session_id = $1",
+      [sessionId]
     );
 
-    await connection.end();
-
-    if (rows.length === 0) {
-      return res.status(404).json({ error: "Commande introuvable" });
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Commande non trouvée" });
     }
 
-    const order = rows[0];
-
+    const order = result.rows[0];
     res.status(200).json({
-      status: order.sent_at ? "sent" : "pending",
+      status: order.status,
       firstName: order.first_name,
       lastName: order.last_name,
+      email: order.email,
       type: order.type,
       price: order.price,
-      email: order.email,
-      invoice: order.invoice_id,
-      ticket: order.ticket_id,
-      sentAt: order.sent_at,
+      createdAt: order.created_at,
     });
-  } catch (err) {
-    console.error("Erreur base de données:", err);
-    res.status(500).json({ error: "Erreur interne du serveur" });
+  } catch (error) {
+    console.error("Erreur lecture commande:", error);
+    res.status(500).json({ error: "Erreur interne", details: error.message });
   }
 }
-
