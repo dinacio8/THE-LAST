@@ -3,163 +3,116 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>The Last - 18 octobre 2025 @ GVA Paintball</title>
-  <meta name="description" content="The Last, Genève — Samedi 18 octobre 2025 dès 19h à GVA Paintball. Une nuit électro avec DJs, bar et dancefloor. Billets en ligne, paiement sécurisé (carte, Apple Pay, Google Pay, Twint).">
-  <meta name="keywords" content="The Last Genève, soirée électro Genève, GVA Paintball, concert techno Genève, billets en ligne, Twint paiement">
-  <meta property="og:title" content="The Last - 18 octobre 2025 @ GVA Paintball">
-  <meta property="og:description" content="Une nuit électro à Genève dès 19h avec DJs, ambiance rave, bar, et dancefloor. Réserve ton billet en ligne maintenant.">
-  <meta property="og:image" content="terrain_GE_gvapaintball_01.png">
-  <meta property="og:url" content="https://tonsite.com">
-  <meta name="twitter:card" content="summary_large_image">
-  <link rel="icon" href="terrain_GE_gvapaintball_01.png" type="image/png">
+  <title>Admin – THE LAST</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    html { scroll-behavior: smooth; scroll-padding-top: 80px; }
-    .fade-in { opacity: 0; transform: translateY(20px); transition: opacity 1s ease-out, transform 1s ease-out; }
-    .fade-in.show { opacity: 1; transform: translateY(0); }
-    .pulse { animation: pulse 2s infinite; }
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34,197,94,0.7); }
-      50% { transform: scale(1.05); box-shadow: 0 0 20px 10px rgba(34,197,94,0); }
-    }
-    .hero-bg { background: linear-gradient(135deg, #22c55e, #facc15); }
+    body { font-family: 'Inter', sans-serif; }
+    .hidden { display: none; }
   </style>
 </head>
-<body class="bg-gray-50 text-gray-900 flex flex-col min-h-screen">
+<body class="bg-gray-50 min-h-screen">
 
-  <!-- HEADER -->
-  <header class="bg-white shadow fixed top-0 w-full z-50">
-    <div class="max-w-6xl mx-auto flex justify-between items-center p-4">
-      <a href="/index.html" class="flex items-center gap-4">
-        <img src="terrain_GE_gvapaintball_01.png" alt="Logo GVA Paintball"
-             class="h-10 md:h-16 lg:h-20 object-contain">
-        <span class="font-bold text-green-600 text-lg md:text-2xl">The Last</span>
-      </a>
-      <nav class="hidden md:flex gap-6 text-gray-700 font-semibold">
-        <a href="#billets" class="hover:text-green-600">Billets</a>
-        <a href="#programme" class="hover:text-green-600">Programme</a>
-        <a href="#infos" class="hover:text-green-600">Infos</a>
-        <a href="#contact" class="hover:text-green-600">Contact</a>
-        <a href="/about.html" class="hover:text-green-600">À propos</a>
-      </nav>
-      <button id="burgerBtn" class="md:hidden flex flex-col gap-1">
-        <span class="block w-6 h-0.5 bg-black"></span>
-        <span class="block w-6 h-0.5 bg-black"></span>
-        <span class="block w-6 h-0.5 bg-black"></span>
+  <div id="loginScreen" class="flex items-center justify-center h-screen bg-gradient-to-br from-green-500 to-yellow-400">
+    <div class="bg-white p-10 rounded-xl shadow-xl w-96 text-center">
+      <h1 class="text-2xl font-bold mb-4 text-green-600">🔐 Accès Admin</h1>
+      <input id="passwordInput" type="password" placeholder="Mot de passe"
+             class="border border-gray-300 rounded-md w-full p-2 mb-4 text-center focus:ring-2 focus:ring-green-400 outline-none">
+      <button id="loginBtn" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-md w-full">
+        Se connecter
       </button>
+      <p id="errorMsg" class="text-red-500 text-sm mt-3 hidden">Mot de passe incorrect</p>
     </div>
-    <div id="mobileMenu" class="hidden flex-col bg-gray-100 p-4 md:hidden font-semibold">
-      <a href="#billets" class="py-2 hover:text-green-600">Billets</a>
-      <a href="#programme" class="py-2 hover:text-green-600">Programme</a>
-      <a href="#infos" class="py-2 hover:text-green-600">Infos</a>
-      <a href="#contact" class="py-2 hover:text-green-600">Contact</a>
-      <a href="/about.html" class="py-2 hover:text-green-600">À propos</a>
+  </div>
+
+  <div id="dashboard" class="hidden p-6">
+    <h1 class="text-3xl font-bold text-green-600 mb-6">📊 Tableau de bord – THE LAST</h1>
+
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6">
+      <input id="searchInput" type="text" placeholder="Rechercher par nom ou email..."
+             class="border border-gray-300 rounded-md p-2 w-full md:w-1/3 focus:ring-2 focus:ring-green-400 outline-none">
+      <p class="text-lg text-gray-700 mt-4 md:mt-0">
+        Total ventes : <strong id="totalSales" class="text-green-600">0 CHF</strong>
+      </p>
     </div>
-  </header>
 
-  <!-- HERO -->
-  <section class="hero-bg relative h-[70vh] flex items-center justify-center text-center">
-    <div class="absolute inset-0 bg-black/50"></div>
-    <div class="relative z-10 text-white px-4">
-      <h1 class="text-4xl md:text-6xl font-bold">The Last</h1>
-      <p class="mt-4 text-lg md:text-2xl">Samedi 18 octobre 2025 — dès 19h — GVA Paintball</p>
-      <a href="#billets" class="mt-6 inline-block bg-white text-green-600 hover:bg-green-100 font-bold py-3 px-6 rounded-lg pulse">
-        🎟 Réserver maintenant
-      </a>
+    <div class="overflow-x-auto bg-white shadow-lg rounded-lg">
+      <table class="w-full text-left border-collapse">
+        <thead class="bg-green-600 text-white">
+          <tr>
+            <th class="py-3 px-4">#</th>
+            <th class="py-3 px-4">Nom</th>
+            <th class="py-3 px-4">Email</th>
+            <th class="py-3 px-4">Type</th>
+            <th class="py-3 px-4">Prix</th>
+            <th class="py-3 px-4">Date</th>
+            <th class="py-3 px-4 text-center">Billet</th>
+            <th class="py-3 px-4 text-center">Facture</th>
+          </tr>
+        </thead>
+        <tbody id="ordersTable"></tbody>
+      </table>
     </div>
-  </section>
+  </div>
 
-  <!-- Billets -->
-  <section id="billets" class="fade-in text-center py-16 bg-white">
-    <h2 class="text-3xl font-bold text-green-600 mb-6">Choisis ton billet</h2>
-    <div class="flex flex-col md:flex-row justify-center gap-8">
-      <button id="buyStandard"
-        class="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-10 rounded-lg shadow-lg">
-        INDIVIDUEL - 5 CHF
-      </button>
-    </div>
-  </section>
-
-  <!-- Programme -->
-  <section id="programme" class="fade-in py-16 bg-gray-50 text-center">
-    <h2 class="text-3xl font-bold text-green-600 mb-6">Programme</h2>
-    <ul class="space-y-4 text-lg">
-      <li>19h00 — Ouverture des portes</li>
-      <li>21h30 — Warm Up DJ</li>
-      <li>23h00 — DJ principal</li>
-      <li>02h00 — Set techno</li>
-      <li>05h00 — After jusqu’au matin</li>
-    </ul>
-  </section>
-
-  <!-- Infos -->
-  <section id="infos" class="fade-in py-16 bg-gray-50 text-center">
-    <h2 class="text-3xl font-bold text-green-600 mb-6">Infos pratiques</h2>
-    <p class="text-lg max-w-2xl mx-auto mb-8">
-      📍 <strong>Adresse :</strong> Chemin des Coquelicots 29, 1214 Vernier<br>
-      ⏰ <strong>Début :</strong> 19h00<br>
-      🚇 <strong>Train :</strong> arrêt Vernier – lignes SL5, SL6, TER<br>
-      🚋 <strong>Tram :</strong> arrêt Blandonnet – lignes 14, 15, 17, 18<br>
-      🚌 <strong>Bus :</strong> arrêt Blandonnet – lignes 23, 28, 53, 56, 57, 68<br>
-      🚗 <strong>Voiture :</strong> parking sur place<br>
-    </p>
-    <div class="w-full max-w-3xl mx-auto h-64 mb-8">
-      <iframe
-        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2788.9136066073733!2d6.106535315774699!3d46.217664979107185!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x478c652b373d1723%3A0xceb415c29e8a4295!2sChemin%20des%20Coquelicots%2029%2C%201214%20Vernier!5e0!3m2!1sfr!2sch!4v1696150000000!5m2!1sfr!2sch"
-        width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy"
-        referrerpolicy="no-referrer-when-downgrade">
-      </iframe>
-    </div>
-  </section>
-
-  <!-- Contact -->
-  <section id="contact" class="fade-in py-16 bg-white text-center">
-    <h2 class="text-3xl font-bold text-green-600 mb-6">Contact</h2>
-    <p class="text-lg">📧 <a href="mailto:info@gvapaintball.ch" class="text-green-600 hover:underline">info@gvapaintball.ch</a></p>
-    <p class="text-lg mt-2">☎ +41 22 555 00 00</p>
-  </section>
-
-  <!-- FOOTER -->
-  <footer class="bg-gray-100 p-6 text-center text-sm text-gray-500">
-    <div class="flex justify-center gap-6 mb-4">
-      <a href="https://www.instagram.com" target="_blank" class="text-pink-500 hover:text-pink-600 text-2xl">
-        <i class="fab fa-instagram"></i>
-      </a>
-      <a href="https://www.facebook.com" target="_blank" class="text-blue-600 hover:text-blue-700 text-2xl">
-        <i class="fab fa-facebook"></i>
-      </a>
-      <a href="https://www.tiktok.com" target="_blank" class="text-black hover:text-gray-700 text-2xl">
-        <i class="fab fa-tiktok"></i>
-      </a>
-    </div>
-    © 2025 The Last — Tous droits réservés
-  </footer>
-
-  <!-- SCRIPT -->
   <script>
-    const USE_STRIPE = true;
-    const burgerBtn = document.getElementById("burgerBtn");
-    const mobileMenu = document.getElementById("mobileMenu");
-    burgerBtn.addEventListener("click", () => mobileMenu.classList.toggle("hidden"));
-    document.querySelectorAll("#mobileMenu a").forEach(link => {
-      link.addEventListener("click", () => mobileMenu.classList.add("hidden"));
-    });
+    const ADMIN_KEY = "GvaPaintball2025.";
 
-    async function createSession(type) {
-      if (USE_STRIPE) {
-        window.location.href = `/checkout.html?type=${type}`;
+    const loginScreen = document.getElementById("loginScreen");
+    const dashboard = document.getElementById("dashboard");
+    const loginBtn = document.getElementById("loginBtn");
+    const passwordInput = document.getElementById("passwordInput");
+    const errorMsg = document.getElementById("errorMsg");
+
+    loginBtn.addEventListener("click", async () => {
+      const password = passwordInput.value.trim();
+      if (password === ADMIN_KEY) {
+        loginScreen.classList.add("hidden");
+        dashboard.classList.remove("hidden");
+        loadOrders();
       } else {
-        window.location.href = `/fake-checkout.html?type=${type}`;
+        errorMsg.classList.remove("hidden");
       }
-    }
-
-    document.getElementById('buyStandard').addEventListener('click', () => createSession("INDIVIDUEL"));
-
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add("show"); });
     });
-    document.querySelectorAll(".fade-in").forEach(el => observer.observe(el));
+
+    async function loadOrders() {
+      const res = await fetch(`/api/admin-orders?key=${ADMIN_KEY}`);
+      const orders = await res.json();
+      const table = document.getElementById("ordersTable");
+      const totalSales = document.getElementById("totalSales");
+      const searchInput = document.getElementById("searchInput");
+
+      let total = 0;
+      const render = (filter = "") => {
+        table.innerHTML = "";
+        let filtered = orders.filter(o =>
+          `${o.first_name} ${o.last_name} ${o.email}`.toLowerCase().includes(filter.toLowerCase())
+        );
+        for (const o of filtered) {
+          total += parseFloat(o.price);
+          const row = document.createElement("tr");
+          row.className = "border-b hover:bg-green-50";
+          row.innerHTML = `
+            <td class="py-2 px-4">${o.id}</td>
+            <td class="py-2 px-4">${o.first_name} ${o.last_name}</td>
+            <td class="py-2 px-4">${o.email}</td>
+            <td class="py-2 px-4">${o.type}</td>
+            <td class="py-2 px-4 font-semibold">${o.price} CHF</td>
+            <td class="py-2 px-4">${new Date(o.created_at).toLocaleString("fr-CH")}</td>
+            <td class="py-2 px-4 text-center">
+              <a href="/api/get-pdf?type=ticket&id=${o.ticket_id}&key=${ADMIN_KEY}" target="_blank" class="text-green-600 font-bold">🎟</a>
+            </td>
+            <td class="py-2 px-4 text-center">
+              <a href="/api/get-pdf?type=invoice&id=${o.invoice_id}&key=${ADMIN_KEY}" target="_blank" class="text-blue-600 font-bold">📄</a>
+            </td>
+          `;
+          table.appendChild(row);
+        }
+        totalSales.textContent = `${filtered.reduce((acc, o) => acc + parseFloat(o.price), 0)} CHF`;
+      };
+
+      render();
+      searchInput.addEventListener("input", (e) => render(e.target.value));
+    }
   </script>
 </body>
 </html>
