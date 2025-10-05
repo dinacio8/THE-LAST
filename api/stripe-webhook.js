@@ -1,7 +1,7 @@
 import Stripe from "stripe";
 import { Resend } from "resend";
 import { buffer } from "micro";
-import { generateTicket, generateInvoice } from "../../utils/pdfGenerator.js";
+import { generateTicket, generateInvoice } from "../utils/pdfGenerator.js"; // ✅ chemin corrigé
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -19,6 +19,7 @@ export default async function handler(req, res) {
   }
 
   let event;
+
   try {
     const sig = req.headers["stripe-signature"];
     const buf = await buffer(req);
@@ -29,13 +30,11 @@ export default async function handler(req, res) {
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
-    console.error("❌ Erreur vérification signature Stripe:", err.message);
-    return res
-      .status(400)
-      .send(`Webhook Error: ${err.message}`);
+    console.error("❌ Erreur de vérification de la signature Stripe:", err.message);
+    return res.status(400).send(⁠ Webhook Error: ${err.message} ⁠);
   }
 
-  // ✅ Paiement confirmé
+  // ✅ Paiement réussi
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
     const { type, firstName, lastName, address } = session.metadata;
@@ -43,17 +42,17 @@ export default async function handler(req, res) {
 
     try {
       const price = type === "VIP" ? 15 : 5;
-      const ticketId = `TICKET-${Date.now()}`;
-      const invoiceId = `FAC-2025-10-${Date.now().toString().slice(-4)}`;
+      const ticketId = ⁠ TICKET-${Date.now()} ⁠;
+      const invoiceId = ⁠ FAC-2025-10-${Date.now().toString().slice(-4)} ⁠;
       const buyer = { firstName, lastName, email, address };
 
-      console.log(`🎟 Génération du billet et facture pour ${email}`);
+      console.log(⁠ 🎟 Génération du billet et de la facture pour ${email} ⁠);
 
-      // Génération des PDF en mémoire
+      // Génération des PDF (buffers)
       const ticketBuffer = await generateTicket(ticketId, buyer, type);
       const invoiceBuffer = await generateInvoice(invoiceId, buyer, type, price);
 
-      // Envoi du mail
+      // Envoi du mail via Resend
       await resend.emails.send({
         from: "The Last <evenement@gvapaintball.com>",
         to: email,
@@ -69,22 +68,21 @@ export default async function handler(req, res) {
         `,
         attachments: [
           {
-            filename: `billet-${ticketId}.pdf`,
+            filename: ⁠ billet-${ticketId}.pdf ⁠,
             content: ticketBuffer.toString("base64"),
           },
           {
-            filename: `facture-${invoiceId}.pdf`,
+            filename: ⁠ facture-${invoiceId}.pdf ⁠,
             content: invoiceBuffer.toString("base64"),
           },
         ],
       });
 
-      console.log(`✅ Mail envoyé à ${email}`);
+      console.log(⁠ ✅ Mail envoyé à ${email} ⁠);
     } catch (err) {
-      console.error("❌ Erreur lors de l'envoi du ticket:", err);
+      console.error("❌ Erreur lors de la génération/envoi du billet:", err);
     }
   }
 
   res.status(200).json({ received: true });
 }
-
