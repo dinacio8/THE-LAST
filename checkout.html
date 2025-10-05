@@ -1,89 +1,114 @@
 <!doctype html>
 <html lang="fr">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Paiement sécurisé - The Last</title>
-<meta name="description" content="Paiement sécurisé pour The Last, samedi 18 octobre 2025 dès 19h à Genève.">
-<script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Paiement sécurisé - The Last</title>
+  <meta name="description" content="Paiement sécurisé pour The Last, samedi 18 octobre 2025 dès 19h à Genève.">
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 text-gray-900 flex flex-col min-h-screen">
 
-<!-- HEADER -->
-<header class="bg-white shadow p-4 flex justify-between items-center">
-<a href="/index.html" class="flex items-center gap-3">
-<img src="terrain_GE_gvapaintball_01.png" alt="Logo GVA Paintball" class="h-10">
-<span class="text-2xl font-bold text-green-600">The Last</span>
-</a>
-</header>
+  <!-- HEADER -->
+  <header class="bg-white shadow p-4 flex justify-between items-center">
+    <a href="/index.html" class="flex items-center gap-3">
+      <img src="/terrain_GE_gvapaintball_01.png" alt="Logo GVA Paintball" class="h-10">
+      <span class="text-2xl font-bold text-green-600">The Last</span>
+    </a>
+  </header>
 
-<!-- MAIN -->
-<main class="flex flex-col items-center justify-center flex-1 p-8">
-<div class="bg-white shadow-xl rounded-xl p-8 max-w-md w-full">
-<h1 class="text-2xl font-bold text-green-600 text-center mb-4">Paiement sécurisé</h1>
-<p class="text-center text-gray-500 mb-6">
-💳 Paiement sécurisé par carte, Apple Pay, Google Pay et Twint
-</p>
+  <!-- MAIN -->
+  <main class="flex flex-col items-center justify-center flex-1 p-8">
+    <div class="bg-white shadow-xl rounded-xl p-8 max-w-md w-full">
+      <h1 class="text-2xl font-bold text-green-600 text-center mb-4">Paiement sécurisé</h1>
+      <p class="text-center text-gray-500 mb-6">
+        💳 Paiement sécurisé par carte, Apple Pay, Google Pay et Twint
+      </p>
 
-<form id="checkoutForm" class="space-y-4">
-<input type="text" id="firstName" placeholder="Prénom" required
-class="w-full border border-gray-300 rounded-md p-2">
-<input type="text" id="lastName" placeholder="Nom" required
-class="w-full border border-gray-300 rounded-md p-2">
-<input type="text" id="address" placeholder="Adresse complète" required
-class="w-full border border-gray-300 rounded-md p-2">
-<input type="email" id="email" placeholder="Email" required
-class="w-full border border-gray-300 rounded-md p-2">
+      <form id="checkoutForm" class="space-y-4">
+        <input type="text" id="firstName" placeholder="Prénom" required
+          class="w-full border border-gray-300 rounded-md p-2">
+        <input type="text" id="lastName" placeholder="Nom" required
+          class="w-full border border-gray-300 rounded-md p-2">
+        <input type="text" id="address" placeholder="Adresse complète" required
+          class="w-full border border-gray-300 rounded-md p-2">
+        <input type="email" id="email" placeholder="Email" required
+          class="w-full border border-gray-300 rounded-md p-2">
 
-<button type="submit"
-class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg">
-Confirmer le paiement
-</button>
-</form>
-</div>
-</main>
+        <button type="submit"
+          class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-all duration-200">
+          Confirmer le paiement
+        </button>
+      </form>
 
-<!-- FOOTER -->
-<footer class="bg-gray-100 p-6 text-center text-sm text-gray-500">
-© 2025 The Last — Tous droits réservés
-</footer>
+      <div id="message" class="hidden mt-4 text-center text-sm"></div>
+    </div>
+  </main>
 
-<script>
-document.getElementById("checkoutForm").addEventListener("submit", async (e) => {
-e.preventDefault();
+  <!-- FOOTER -->
+  <footer class="bg-gray-100 p-6 text-center text-sm text-gray-500">
+    ©️ 2025 The Last — Tous droits réservés
+  </footer>
 
-const orderData = {
-firstName: document.getElementById("firstName").value,
-lastName: document.getElementById("lastName").value,
-address: document.getElementById("address").value,
-email: document.getElementById("email").value,
-type: new URLSearchParams(window.location.search).get("type") || "INDIVIDUEL"
-};
+  <!-- SCRIPT -->
+  <script>
+  const API_URL = "https://evenement.gvapaintball.com/api/checkout-session";
 
-try {
-const response = await fetch("https://evenement.gvapaintball.com/api/checkout-session", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify(orderData)
-});
+  document.getElementById("checkoutForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-const session = await response.json();
+    const msgBox = document.getElementById("message");
+    msgBox.classList.add("hidden");
+    msgBox.textContent = "";
 
-if (!response.ok) {
-alert("Erreur lors de la création de la session Stripe.");
-console.error(session);
-return;
-}
+    const orderData = {
+      firstName: document.getElementById("firstName").value.trim(),
+      lastName: document.getElementById("lastName").value.trim(),
+      address: document.getElementById("address").value.trim(),
+      email: document.getElementById("email").value.trim(),
+      type: new URLSearchParams(window.location.search).get("type") || "INDIVIDUEL"
+    };
 
-// 🔥 Redirige vers la page Stripe hébergée
-window.location.href = session.url;
+    console.log("🧾 Données envoyées :", orderData);
 
-} catch (err) {
-console.error("Erreur de communication avec le serveur:", err);
-alert("Erreur de communication avec le serveur.");
-}
-});
-</script>
+    try {
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderData)
+      });
+
+      console.log("📡 Statut HTTP :", response.status);
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error("⚠️ Erreur du serveur :", text);
+        msgBox.textContent = "Erreur du serveur (" + response.status + ")";
+        msgBox.classList.remove("hidden");
+        msgBox.classList.add("text-red-600");
+        return;
+      }
+
+      const session = await response.json();
+      console.log("✅ Réponse Stripe :", session);
+
+      if (session && session.url) {
+        console.log("➡️ Redirection vers Stripe :", session.url);
+        window.location.href = session.url;
+      } else {
+        msgBox.textContent = "Erreur : l’URL Stripe est introuvable.";
+        msgBox.classList.remove("hidden");
+        msgBox.classList.add("text-red-600");
+        console.error("Réponse inattendue :", session);
+      }
+
+    } catch (err) {
+      console.error("❌ Erreur de communication avec le serveur :", err);
+      msgBox.textContent = "Erreur de communication avec le serveur.";
+      msgBox.classList.remove("hidden");
+      msgBox.classList.add("text-red-600");
+    }
+  });
+  </script>
 </body>
 </html>
-
