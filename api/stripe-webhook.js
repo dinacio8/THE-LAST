@@ -51,7 +51,7 @@ export default async function handler(req, res) {
       const invoicePath = await generateInvoice(invoiceId, buyer, type, price);
 
       await resend.emails.send({
-        from: "Rave@GVAPaintball <confirmation@dias-lab.ch>",
+        from: "Rave@GVAPaintball <evenement@gvapaintball.com>",
         to: email,
         subject: `Ton billet pour THE LAST`,
         html: `<p>Salut ${firstName},</p>
@@ -78,3 +78,4 @@ export default async function handler(req, res) {
     res.status(405).end("Méthode non autorisée");
   }
 }
+
