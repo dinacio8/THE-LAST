@@ -9,11 +9,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
-export const config = {
-  api: { bodyParser: false },
-};
+// ✅ Nouvelle convention Next 14
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
-// Fonction compteur
+// Incrémentation du compteur
 async function getNextCounter(name) {
   const client = await pool.connect();
   try {
@@ -35,12 +35,13 @@ async function getNextCounter(name) {
   }
 }
 
+// 🧾 Webhook Stripe
 export async function POST(req) {
   let event;
   try {
     const sig = req.headers.get("stripe-signature");
-    const buf = await buffer(req);
-    event = stripe.webhooks.constructEvent(buf, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    const rawBody = Buffer.from(await req.arrayBuffer()); // ✅ corps brut compatible Next 14
+    event = stripe.webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     console.error("❌ Erreur Webhook Stripe:", err.message);
     return new Response(`Webhook Error: ${err.message}`, { status: 400 });
@@ -100,6 +101,8 @@ export async function POST(req) {
           { filename: `${invoiceId}.pdf`, content: invoicePDF.toString("base64") },
         ],
       });
+
+      console.log(`📩 Mail envoyé à ${email}`);
     } catch (error) {
       console.error("❌ Erreur traitement commande:", error);
     }
