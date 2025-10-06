@@ -1,97 +1,75 @@
 import PDFDocument from "pdfkit";
 import getStream from "get-stream";
-import pkg from "pg";
-const { Pool } = pkg;
+import { pool } from "../lib/db.js";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
+// Incremente un compteur par type dans la table "counters"
+export async function generateNextId(kind) {
+  // kind = "invoice" ou "ticket"
+  const prefix = kind === "invoice" ? "FAC" : "TICKET";
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
 
-// 🔢 Génère un ID incrémental qui part de 1
-export async function generateNextId(type) {
-  const prefix = type === "invoice" ? "FAC" : "TICKET";
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-
-  // Met à jour le compteur et récupère le nouveau numéro
   const result = await pool.query(
-    `UPDATE counters
-     SET last_number = last_number + 1
-     WHERE type = $1
-     RETURNING last_number`,
-    [type]
+    `INSERT INTO counters (type, value)
+     VALUES ($1, 1)
+     ON CONFLICT (type) DO UPDATE SET value = counters.value + 1
+     RETURNING value`,
+    [kind]
   );
 
-  // Si le compteur n'existe pas encore (cas rare)
-  if (result.rows.length === 0) {
-    await pool.query(
-      "INSERT INTO counters (type, last_number) VALUES ($1, 1)",
-      [type]
-    );
-    return ⁠ ${prefix}-${year}-${month}-001 ⁠;
-  }
-
-  const next = result.rows[0].last_number;
-  const formatted = String(next).padStart(3, "0");
-
-  return ⁠ ${prefix}-${year}-${month}-${formatted} ⁠;
+  const n = result.rows[0].value;
+  const seq = String(n).padStart(4, "0");
+  return `${prefix}-${year}-${month}-${seq}`;
 }
 
-// 🧾 Génère une facture PDF complète
+// Facture A4 simple, claire, sans emojis
 export async function generateInvoice(invoiceId, buyer, type, price) {
-  const doc = new PDFDocument({ margin: 50 });
-  const stream = getStream.buffer(doc);
+  const doc = new PDFDocument({ size: "A4", margin: 50 });
+  const bufferPromise = getStream.buffer(doc);
 
-  doc.fontSize(20).text("FACTURE", { align: "center" });
-  doc.moveDown(1);
-
-  doc.fontSize(12).text(⁠ Numéro : ${invoiceId} ⁠);
-  doc.text(⁠ Nom : ${buyer.firstName} ${buyer.lastName} ⁠);
-  doc.text(⁠ Adresse : ${buyer.address} ⁠);
-  doc.text(⁠ Email : ${buyer.email} ⁠);
+  doc.fontSize(20).fillColor("black").text("FACTURE", { align: "center" });
   doc.moveDown();
 
-  doc.text(⁠ Type de billet : ${type} ⁠);
-  doc.text(⁠ Montant TTC : CHF ${price.toFixed(2)} ⁠);
-  doc.text("TVA incluse (7.7%)");
+  doc.fontSize(12);
+  doc.text(`Numero: ${invoiceId}`);
+  doc.text(`Date: ${new Date().toLocaleDateString("fr-CH")}`);
+  doc.text(`Client: ${buyer.firstName} ${buyer.lastName}`);
+  doc.text(`Adresse: ${buyer.address}`);
+  doc.text(`Email: ${buyer.email}`);
   doc.moveDown();
 
-  doc.text("Merci pour votre achat !");
-  doc.moveDown(2);
+  doc.text("Details:");
+  doc.text(`- Type de billet: ${type}`);
+  doc.text(`- Montant TTC: CHF ${price.toFixed(2)}`);
+  doc.moveDown();
 
-  doc.fontSize(10).text("The Last — GVA Paintball");
-  doc.text("Chemin des Coquelicots 29, 1214 Vernier", { align: "center" });
-
+  doc.text("Merci pour votre achat.");
   doc.end();
-  return stream;
+
+  return bufferPromise;
 }
 
-// 🎟 Génère un ticket PDF complet
+// Billet A6 horizontal, bandeau vert, sans emojis
 export async function generateTicket(ticketId, buyer, type) {
-  const doc = new PDFDocument({ margin: 50 });
-  const stream = getStream.buffer(doc);
+  const doc = new PDFDocument({ size: "A6", layout: "landscape", margin: 16 });
+  const bufferPromise = getStream.buffer(doc);
 
-  doc.fontSize(20).text("🎫 THE LAST — Billet d'entrée", { align: "center" });
-  doc.moveDown(1);
+  // Bandeau
+  doc.rect(0, 0, doc.page.width, 48).fill("#22a35a");
+  doc.fillColor("white").fontSize(18).text("THE LAST", 16, 14);
+  doc.fillColor("black");
 
-  doc.fontSize(12).text(⁠ Numéro de billet : ${ticketId} ⁠);
-  doc.text(⁠ Nom : ${buyer.firstName} ${buyer.lastName} ⁠);
-  doc.text(⁠ Type : ${type} ⁠);
+  doc.moveDown(2);
+  doc.fontSize(12);
+  doc.text(`Titulaire: ${buyer.firstName} ${buyer.lastName}`);
+  doc.text(`Type: ${type}`);
+  doc.text(`Numero billet: ${ticketId}`);
+  doc.text("Date: 18/10/2025 - 19h");
+  doc.text("Lieu: GVA Paintball, Chemin des Coquelicots 29, 1214 Vernier");
   doc.moveDown();
-
-  doc.text("📍 Lieu : GVA Paintball — Chemin des Coquelicots 29, 1214 Vernier");
-  doc.text("📅 Date : 18 octobre 2025 — dès 19h");
-  doc.moveDown(2);
-
-  doc.text("Présentez ce billet à l'entrée pour accéder à la soirée.", {
-    align: "center",
-  });
-  doc.moveDown(2);
-
-  doc.text("Merci et bon fun 🔥", { align: "center" });
+  doc.fontSize(10).text("Present ez ce billet a l'entree. Non remboursable.", { align: "center" });
 
   doc.end();
-  return stream;
+  return bufferPromise;
 }
