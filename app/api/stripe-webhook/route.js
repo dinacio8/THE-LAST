@@ -2,7 +2,11 @@ import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { Pool } from "pg";
+import PDFDocument from "pdfkit";
+import QRCode from "qrcode";
+import stream from "stream";
 
+// Nécessaire car on utilise des modules côté serveur
 export const dynamic = "force-dynamic";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -28,10 +32,44 @@ export async function POST(req) {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
     console.log("✅ Paiement confirmé :", session.id);
-    console.log("📦 Metadata :", session.metadata);
 
+    // --- Génération du ticket PDF ---
     try {
-      // Enregistrement DB
+      // Génère le QR code du billet (URL de confirmation)
+      const qrDataUrl = await QRCode.toDataURL(
+        `https://evenement.gvapaintball.com/success?session_id=${session.id}`
+      );
+
+      // Création du document PDF
+      const pdfBuffer = await new Promise((resolve, reject) => {
+        const doc = new PDFDocument({ size: "A4", margin: 50 });
+        const chunks = [];
+        doc.on("data", (chunk) => chunks.push(chunk));
+        doc.on("end", () => resolve(Buffer.concat(chunks)));
+        doc.on("error", (err) => reject(err));
+
+        doc.fontSize(20).fillColor("#22c55e").text("🎟 The Last @ GVA Paintball", { align: "center" });
+        doc.moveDown();
+        doc.fontSize(12).fillColor("black").text(`Billet : ${session.metadata.type}`, { align: "center" });
+        doc.text(`Date : Samedi 18 octobre 2025`, { align: "center" });
+        doc.text(`Lieu : GVA Paintball, Genève`, { align: "center" });
+        doc.moveDown();
+        doc.text(`Nom : ${session.metadata.firstName} ${session.metadata.lastName}`, { align: "center" });
+        doc.text(`Email : ${session.customer_details.email}`, { align: "center" });
+        doc.moveDown();
+        doc.text(`Montant payé : ${session.amount_total / 100} CHF`, { align: "center" });
+        doc.moveDown();
+        doc.image(qrDataUrl, {
+          fit: [150, 150],
+          align: "center",
+          valign: "center",
+        });
+        doc.moveDown();
+        doc.text("Merci pour ta réservation et à très vite pour la soirée 🎶", { align: "center" });
+        doc.end();
+      });
+
+      // --- Enregistrement dans la base Neon ---
       const result = await pool.query(
         `INSERT INTO orders (session_id, first_name, last_name, email, type, amount)
          VALUES ($1, $2, $3, $4, $5, $6)
@@ -46,30 +84,39 @@ export async function POST(req) {
         ]
       );
 
-      if (result.rowCount === 0) {
-        console.warn("⚠️ Aucune ligne insérée (probablement déjà existante).");
-      } else {
+      if (result.rowCount > 0) {
         console.log("🗃 Commande insérée :", result.rows[0]);
+      } else {
+        console.warn("⚠️ Ligne déjà existante pour cette session :", session.id);
       }
 
-      // Envoi mail
+      // --- Envoi du mail avec pièce jointe PDF ---
       await resend.emails.send({
         from: "GVA Paintball <noreply@evenement.gvapaintball.com>",
         to: session.customer_details.email,
-        subject: "🎟 Confirmation de ton billet - The Last @ GVA Paintball",
+        subject: "🎟 Ton billet pour The Last @ GVA Paintball",
         html: `
           <h2>Merci pour ton achat !</h2>
           <p>Bonjour ${session.metadata.firstName},</p>
-          <p>Ton billet <b>${session.metadata.type}</b> a bien été enregistré.</p>
-          <p>Montant : ${session.amount_total / 100} CHF</p>
-          <p>Session : ${session.id}</p>
-          <p>⚙️ Les détails seront disponibles sur la page "Succès".</p>
+          <p>Voici ton billet pour <b>The Last</b> à GVA Paintball.</p>
+          <p><b>Type :</b> ${session.metadata.type}</p>
+          <p><b>Montant :</b> ${session.amount_total / 100} CHF</p>
+          <p>📍 Lieu : GVA Paintball, Genève<br>📅 Samedi 18 octobre 2025 dès 19h</p>
+          <p>Présente ton billet (avec le QR code) à l’entrée.</p>
+          <br>
+          <p>🎶 À très vite pour une nuit inoubliable !</p>
         `,
+        attachments: [
+          {
+            filename: `Billet_${session.metadata.lastName || "Client"}.pdf`,
+            content: pdfBuffer.toString("base64"),
+          },
+        ],
       });
 
-      console.log("📧 Mail envoyé avec succès !");
+      console.log("📧 Mail avec billet envoyé à", session.customer_details.email);
     } catch (err) {
-      console.error("🔥 Erreur dans le traitement DB ou mail :", err);
+      console.error("🔥 Erreur lors de la génération/envoi :", err);
       return NextResponse.json({ error: err.message }, { status: 500 });
     }
   }
