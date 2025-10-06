@@ -2,15 +2,20 @@ import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { Pool } from "pg";
+import fs from "fs";
+import path from "path";
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
 
-// Important pour que Next.js ne tente pas de le rendre statiquement
 export const dynamic = "force-dynamic";
 
+// 🗝️ Initialisations
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+// 📄 Police embarquée (Roboto Regular)
+const fontPath = path.join(process.cwd(), "app/api/stripe-webhook/fonts/Roboto-Regular.ttf");
 
 export async function POST(req) {
   const sig = req.headers.get("stripe-signature");
@@ -18,11 +23,7 @@ export async function POST(req) {
 
   let event;
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
+    event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     console.error("⚠️ Signature Stripe invalide :", err.message);
     return NextResponse.json({ error: err.message }, { status: 400 });
@@ -33,56 +34,42 @@ export async function POST(req) {
     console.log("✅ Paiement confirmé :", session.id);
 
     try {
-      // Génère un QR code avec lien vers la page succès
+      // 🔗 QR code vers la page succès
       const qrDataUrl = await QRCode.toDataURL(
         `https://evenement.gvapaintball.com/success?session_id=${session.id}`
       );
 
-      // 🧾 Création du billet PDF
+      // 🧾 Génération du billet PDF (sans Helvetica)
       const pdfBuffer = await new Promise((resolve, reject) => {
-  const doc = new PDFDocument({
-  size: "A4",
-  margin: 50,
-  font: null, // ⚠️ empêche le chargement automatique de Helvetica
-});
-doc._font = null; // désactive totalement Helvetica
-doc.font("Courier"); // police intégrée sûre
-
+        const doc = new PDFDocument({ size: "A4", margin: 50 });
         const chunks = [];
         doc.on("data", (chunk) => chunks.push(chunk));
         doc.on("end", () => resolve(Buffer.concat(chunks)));
         doc.on("error", (err) => reject(err));
 
-        // ✅ Empêche PDFKit de tenter de charger Helvetica
-        doc.font("Courier");
+        // 👇 Police locale (Roboto)
+        if (fs.existsSync(fontPath)) {
+          doc.font(fontPath);
+        } else {
+          console.warn("⚠️ Police Roboto introuvable, fallback à la police standard PDFKit");
+        }
 
-        // Titre
+        // Contenu PDF
         doc.fontSize(22).fillColor("#22c55e").text("🎟 The Last @ GVA Paintball", { align: "center" });
         doc.moveDown();
-
-        // Infos générales
         doc.fontSize(12).fillColor("black");
         doc.text(`Billet : ${session.metadata.type}`, { align: "center" });
         doc.text(`Date : Samedi 18 octobre 2025`, { align: "center" });
         doc.text(`Lieu : GVA Paintball, Genève`, { align: "center" });
         doc.moveDown();
 
-        // Client
         doc.text(`Nom : ${session.metadata.firstName} ${session.metadata.lastName}`, { align: "center" });
         doc.text(`Email : ${session.customer_details.email}`, { align: "center" });
         doc.moveDown();
-
-        // Paiement
         doc.text(`Montant payé : ${session.amount_total / 100} CHF`, { align: "center" });
         doc.moveDown(2);
 
-        // QR Code
-        doc.image(qrDataUrl, {
-          fit: [150, 150],
-          align: "center",
-          valign: "center",
-        });
-
+        doc.image(qrDataUrl, { fit: [150, 150], align: "center", valign: "center" });
         doc.moveDown(2);
         doc.fontSize(10).fillColor("#555").text(
           "Présente ce billet avec le QR code à l’entrée. Merci pour ta réservation !",
@@ -92,7 +79,7 @@ doc.font("Courier"); // police intégrée sûre
         doc.end();
       });
 
-      // 📦 Enregistrement en base Neon
+      // 💾 Enregistrement dans la base
       const result = await pool.query(
         `INSERT INTO orders (session_id, first_name, last_name, email, type, amount)
          VALUES ($1, $2, $3, $4, $5, $6)
@@ -108,12 +95,12 @@ doc.font("Courier"); // police intégrée sûre
       );
 
       if (result.rowCount > 0) {
-        console.log("🗃 Commande insérée :", result.rows[0]);
+        console.log("🗃 Commande enregistrée :", result.rows[0]);
       } else {
-        console.warn("⚠️ Ligne déjà existante pour cette session :", session.id);
+        console.warn("⚠️ Commande déjà existante pour :", session.id);
       }
 
-      // 📧 Envoi du mail avec pièce jointe PDF
+      // 📧 Envoi du mail avec billet
       await resend.emails.send({
         from: "GVA Paintball <noreply@evenement.gvapaintball.com>",
         to: session.customer_details.email,
@@ -125,9 +112,8 @@ doc.font("Courier"); // police intégrée sûre
           <p><b>Type :</b> ${session.metadata.type}</p>
           <p><b>Montant :</b> ${session.amount_total / 100} CHF</p>
           <p>📍 <b>Lieu :</b> GVA Paintball, Genève<br>📅 Samedi 18 octobre 2025 dès 19h</p>
-          <p>Présente ton billet (avec le QR code) à l’entrée.</p>
-          <br>
-          <p>🎶 À très vite pour une nuit inoubliable !</p>
+          <p>Présente ton billet avec le QR code à l’entrée.</p>
+          <br><p>🎶 À très vite pour une nuit inoubliable !</p>
         `,
         attachments: [
           {
