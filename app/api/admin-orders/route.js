@@ -1,36 +1,22 @@
-import { Pool } from "pg";
 import { NextResponse } from "next/server";
+import { Pool } from "pg";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-// 📋 Récupère toutes les commandes pour la page Admin
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+
 export async function GET() {
   try {
-    const result = await pool.query(`
-      SELECT
-        id,
-        first_name,
-        last_name,
-        email,
-        price,
-        status,
-        created_at
+    const { rows } = await pool.query(`
+      SELECT id, ticket_id, invoice_id, first_name, last_name, email, address,
+             price, status, type, created_at
       FROM orders
       ORDER BY created_at DESC
     `);
-
-    return NextResponse.json(result.rows);
-  } catch (error) {
-    console.error("❌ Erreur récupération commandes:", error);
-    return NextResponse.json(
-      {
-        error: "Erreur récupération commandes",
-        details: error.message,
-      },
-      { status: 500 }
-    );
+    return NextResponse.json(rows);
+  } catch (e) {
+    console.error("admin-orders:", e);
+    return NextResponse.json({ error: "Erreur récupération commandes" }, { status: 500 });
   }
 }

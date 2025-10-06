@@ -1,60 +1,38 @@
 import { NextResponse } from "next/server";
 import { Pool } from "pg";
 
-// 🔧 Connexion à Neon (PostgreSQL)
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-// 📦 Récupération du statut d'une commande Stripe
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
-  const session_id = searchParams.get("session_id");
-
-  if (!session_id) {
-    return NextResponse.json({ error: "Paramètre session_id manquant" }, { status: 400 });
-  }
+  const sessionId = searchParams.get("session_id");
+  if (!sessionId) return NextResponse.json({ error: "session_id manquant" }, { status: 400 });
 
   try {
-    // Recherche de la commande liée à la session Stripe
-    const result = await pool.query(
-      `SELECT
-         first_name,
-         last_name,
-         email,
-         price,
-         status,
-         ticket_id,
-         invoice_id,
-         created_at
-       FROM orders
-       WHERE stripe_session_id = $1`,
-      [session_id]
+    const { rows } = await pool.query(
+      `SELECT first_name, last_name, email, type, price, status, created_at, ticket_id, invoice_id
+         FROM orders WHERE stripe_session_id = $1`,
+      [sessionId]
     );
+    if (!rows.length) return NextResponse.json({ error: "Commande introuvable" }, { status: 404 });
 
-    if (result.rows.length === 0) {
-      return NextResponse.json({ error: "Commande introuvable" }, { status: 404 });
-    }
-
-    const order = result.rows[0];
-
+    const o = rows[0];
     return NextResponse.json({
-      success: true,
-      firstName: order.first_name,
-      lastName: order.last_name,
-      email: order.email,
-      price: order.price,
-      status: order.status,
-      ticket: order.ticket_id,
-      invoice: order.invoice_id,
-      createdAt: order.created_at,
+      status: o.status,
+      firstName: o.first_name,
+      lastName:  o.last_name,
+      email:     o.email,
+      type:      o.type,
+      price:     o.price,
+      createdAt: o.created_at,
+      ticket:    o.ticket_id,
+      invoice:   o.invoice_id,
     });
-  } catch (error) {
-    console.error("❌ Erreur récupération commande:", error);
-    return NextResponse.json(
-      { error: "Erreur interne du serveur", details: error.message },
-      { status: 500 }
-    );
+  } catch (e) {
+    console.error("order-status:", e);
+    return NextResponse.json({ error: "Erreur interne" }, { status: 500 });
   }
 }

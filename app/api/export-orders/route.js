@@ -1,81 +1,61 @@
 import { NextResponse } from "next/server";
-import ExcelJS from "exceljs";
 import { Pool } from "pg";
+import ExcelJS from "exceljs";
 
-// Connexion Neon
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-// 📦 Génération du fichier Excel
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+
 export async function GET() {
   try {
-    const result = await pool.query(`
-      SELECT
-        id,
-        first_name,
-        last_name,
-        email,
-        price,
-        status,
-        type,
-        ticket_id,
-        invoice_id,
-        created_at
+    const { rows } = await pool.query(`
+      SELECT id, ticket_id, invoice_id, first_name, last_name, email, address,
+             price, status, type, created_at
       FROM orders
       ORDER BY created_at DESC
     `);
 
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet("Commandes");
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Orders");
 
-    // En-têtes
-    sheet.columns = [
-      { header: "ID", key: "id", width: 10 },
-      { header: "Prénom", key: "first_name", width: 15 },
-      { header: "Nom", key: "last_name", width: 15 },
-      { header: "Email", key: "email", width: 25 },
-      { header: "Prix (CHF)", key: "price", width: 12 },
+    ws.columns = [
+      { header: "ID", key: "id", width: 8 },
+      { header: "Ticket", key: "ticket_id", width: 22 },
+      { header: "Facture", key: "invoice_id", width: 22 },
+      { header: "Nom", key: "name", width: 28 },
+      { header: "Email", key: "email", width: 28 },
+      { header: "Adresse", key: "address", width: 42 },
       { header: "Type", key: "type", width: 12 },
+      { header: "Prix", key: "price", width: 10 },
       { header: "Statut", key: "status", width: 12 },
-      { header: "Ticket ID", key: "ticket_id", width: 18 },
-      { header: "Facture ID", key: "invoice_id", width: 18 },
-      { header: "Date", key: "created_at", width: 22 },
+      { header: "Date", key: "created_at", width: 20 },
     ];
 
-    // Style de l’en-tête
-    sheet.getRow(1).eachCell((cell) => {
-      cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF16A34A" } };
-      cell.alignment = { horizontal: "center" };
-    });
-
-    // Données
-    result.rows.forEach((row) => {
-      sheet.addRow({
-        ...row,
-        created_at: new Date(row.created_at).toLocaleString("fr-CH"),
+    rows.forEach(r => {
+      ws.addRow({
+        id: r.id,
+        ticket_id: r.ticket_id,
+        invoice_id: r.invoice_id,
+        name: `${r.first_name} ${r.last_name}`,
+        email: r.email,
+        address: r.address,
+        type: r.type,
+        price: r.price,
+        status: r.status,
+        created_at: new Date(r.created_at).toLocaleString("fr-CH"),
       });
     });
 
-    // Conversion en buffer
-    const buffer = await workbook.xlsx.writeBuffer();
-
-    // Réponse
-    return new NextResponse(buffer, {
-      status: 200,
+    const buf = await wb.xlsx.writeBuffer();
+    return new NextResponse(buf, {
       headers: {
-        "Content-Disposition": "attachment; filename=commandes_the_last.xlsx",
-        "Content-Type":
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="orders.xlsx"`,
       },
     });
-  } catch (error) {
-    console.error("❌ Erreur export Excel:", error);
-    return NextResponse.json(
-      { error: "Erreur export Excel", details: error.message },
-      { status: 500 }
-    );
+  } catch (e) {
+    console.error("export-orders:", e);
+    return NextResponse.json({ error: "Erreur export" }, { status: 500 });
   }
 }
