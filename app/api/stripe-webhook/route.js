@@ -46,7 +46,7 @@ const emailTemplate = (data) => `
               </table>
 
               <p>Tu trouveras ci-joint ton <strong>billet PDF</strong> et ta <strong>facture</strong>.</p>
-              <p>🎟 Présente ton billet à l’entrée le <b>samedi 18 octobre 2025 dès 19h</b>.</p>
+              <p>Présente ton billet à l’entrée le <b>samedi 18 octobre 2025 dès 19h</b>.</p>
 
               <div style="text-align:center;margin-top:30px;">
                 <a href="https://evenement.gvapaintball.com/success?session_id=${data.sessionId}" 
@@ -127,14 +127,14 @@ export async function POST(req) {
       client.release();
 
       // 🔸 Génération PDF billet & facture
-      const ticketPdf = await generatePdf("🎟 Billet d'entrée – The Last", `Nom: ${firstName} ${lastName}\nType: ${type}\nEmail: ${customerEmail}`);
-      const invoicePdf = await generatePdf("📄 Facture – The Last", `Commande: ${sessionId}\nMontant: ${price} CHF`);
+      const ticketPdf = await generatePdf("Billet d'entrée – The Last", `Nom: ${firstName} ${lastName}\nType: ${type}\nEmail: ${customerEmail}`);
+      const invoicePdf = await generatePdf("Facture – The Last", `Commande: ${sessionId}\nMontant: ${price} CHF`);
 
       // 🔸 Envoi email via Resend
       await resend.emails.send({
         from: "The Last <evenement@gvapaintball.com>",
         to: customerEmail,
-        subject: "🎟 Ton billet pour The Last @ GVA Paintball",
+        subject: "Ton billet pour The Last @ GVA Paintball",
         html: emailTemplate({ firstName, lastName, type, price, email: customerEmail, sessionId }),
         attachments: [
           { filename: "billet.pdf", content: ticketPdf, encoding: "base64" },
