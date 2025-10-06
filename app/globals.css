@@ -2,13 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body {
-  margin: 0;
-  padding: 0;
-  font-family: system-ui, sans-serif;
+html {
   scroll-behavior: smooth;
+  scroll-padding-top: 80px;
 }
 
-a {
-  text-decoration: none;
+.fade-in {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 1s ease-out, transform 1s ease-out;
+}
+
+.fade-in.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.pulse {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px 10px rgba(34, 197, 94, 0);
+  }
+}
+
+.hero-bg {
+  background: linear-gradient(135deg, #22c55e, #facc15);
 }
