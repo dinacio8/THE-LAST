@@ -1,83 +1,78 @@
 import Stripe from "stripe";
+import { NextResponse } from "next/server";
+import { Resend } from "resend";
+import { Pool } from "pg";
 
-// 👇 Indique que cette route doit être dynamique (et non statique)
 export const dynamic = "force-dynamic";
 
-// Stripe requiert le corps brut du webhook (non parsé)
-async function readRawBody(req) {
-  const chunks = [];
-  for await (const chunk of req.body) {
-    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
-  }
-  return Buffer.concat(chunks).toString("utf8");
-}
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY);
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 export async function POST(req) {
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
   const sig = req.headers.get("stripe-signature");
+  const body = await req.text();
 
   let event;
   try {
-    const rawBody = await readRawBody(req);
     event = stripe.webhooks.constructEvent(
-      rawBody,
+      body,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
-    console.error("❌ Erreur validation signature :", err.message);
-    return new Response(`Webhook error: ${err.message}`, { status: 400 });
+    console.error("⚠️ Signature Stripe invalide :", err.message);
+    return NextResponse.json({ error: err.message }, { status: 400 });
   }
 
-  try {
-    switch (event.type) {
-      case "checkout.session.completed": {
-        const session = event.data.object;
-        console.log("✅ Paiement reçu pour :", session.customer_email);
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
+    console.log("✅ Paiement confirmé :", session.id);
+    console.log("📦 Metadata :", session.metadata);
 
-        // Exemple d’envoi email (si RESEND_API_KEY est configurée)
-        await sendConfirmationEmail(session);
-        break;
+    try {
+      // Enregistrement DB
+      const result = await pool.query(
+        `INSERT INTO orders (session_id, first_name, last_name, email, type, amount)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (session_id) DO NOTHING RETURNING *;`,
+        [
+          session.id,
+          session.metadata.firstName || "N/A",
+          session.metadata.lastName || "N/A",
+          session.customer_details?.email || "inconnu",
+          session.metadata.type || "inconnu",
+          session.amount_total ? session.amount_total / 100 : 0,
+        ]
+      );
+
+      if (result.rowCount === 0) {
+        console.warn("⚠️ Aucune ligne insérée (probablement déjà existante).");
+      } else {
+        console.log("🗃 Commande insérée :", result.rows[0]);
       }
-      default:
-        console.log("ℹ️ Événement non géré :", event.type);
+
+      // Envoi mail
+      await resend.emails.send({
+        from: "GVA Paintball <noreply@evenement.gvapaintball.com>",
+        to: session.customer_details.email,
+        subject: "🎟 Confirmation de ton billet - The Last @ GVA Paintball",
+        html: `
+          <h2>Merci pour ton achat !</h2>
+          <p>Bonjour ${session.metadata.firstName},</p>
+          <p>Ton billet <b>${session.metadata.type}</b> a bien été enregistré.</p>
+          <p>Montant : ${session.amount_total / 100} CHF</p>
+          <p>Session : ${session.id}</p>
+          <p>⚙️ Les détails seront disponibles sur la page "Succès".</p>
+        `,
+      });
+
+      console.log("📧 Mail envoyé avec succès !");
+    } catch (err) {
+      console.error("🔥 Erreur dans le traitement DB ou mail :", err);
+      return NextResponse.json({ error: err.message }, { status: 500 });
     }
-
-    return new Response("OK", { status: 200 });
-  } catch (err) {
-    console.error("🔥 Erreur interne :", err);
-    return new Response("Erreur interne serveur", { status: 500 });
   }
-}
 
-// Exemple facultatif : envoi d’un mail de confirmation via Resend
-async function sendConfirmationEmail(session) {
-  if (!process.env.RESEND_API_KEY) return;
-
-  try {
-    const { Resend } = await import("resend");
-    const resend = new Resend(process.env.RESEND_API_KEY);
-
-    const name = `${session.metadata.firstName} ${session.metadata.lastName}`;
-    const type = session.metadata.type;
-    const email = session.customer_email;
-
-    await resend.emails.send({
-      from: "GVA Paintball <noreply@gvapaintball.com>",
-      to: email,
-      subject: "🎟 Confirmation de ton billet - The Last",
-      html: `
-        <p>Bonjour ${name},</p>
-        <p>Ton paiement pour <strong>The Last @ GVA Paintball</strong> est confirmé.</p>
-        <p>Type de billet : <b>${type}</b></p>
-        <p>À très bientôt 🎧🔥</p>
-        <hr />
-        <small>© 2025 GVA Paintball</small>
-      `,
-    });
-
-    console.log("📧 Mail envoyé à", email);
-  } catch (err) {
-    console.error("Erreur envoi mail :", err);
-  }
+  return NextResponse.json({ received: true }, { status: 200 });
 }
