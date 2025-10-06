@@ -1,37 +1,12 @@
-"use client";
-
-import { useEffect } from "react";
+export const metadata = {
+  title: "The Last @ GVA Paintball - 18 octobre 2025",
+  description:
+    "The Last @ GVA Paintball, Genève — Samedi 18 octobre 2025 dès 19h. Nuit électro avec DJs, bar et dancefloor. Billets en ligne, paiement sécurisé.",
+};
 
 export default function HomePage() {
-  useEffect(() => {
-    // Effet fade-in
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) entry.target.classList.add("show");
-      });
-    });
-    document.querySelectorAll(".fade-in").forEach((el) => observer.observe(el));
-
-    // Menu burger mobile
-    const burgerBtn = document.getElementById("burgerBtn");
-    const mobileMenu = document.getElementById("mobileMenu");
-    burgerBtn.addEventListener("click", () =>
-      mobileMenu.classList.toggle("hidden")
-    );
-    document.querySelectorAll("#mobileMenu a").forEach((link) =>
-      link.addEventListener("click", () => mobileMenu.classList.add("hidden"))
-    );
-
-    return () => observer.disconnect();
-  }, []);
-
-  const createSession = (type) => {
-    window.location.href = `/checkout?type=${type}`;
-  };
-
   return (
-    <div className="bg-gray-50 text-gray-900 flex flex-col min-h-screen">
-      {/* HEADER */}
+    <main className="min-h-screen bg-gray-50 text-gray-900">
       <header className="bg-white shadow fixed top-0 w-full z-50">
         <div className="max-w-6xl mx-auto flex justify-between items-center p-4">
           <a href="/" className="flex items-center gap-4">
@@ -44,121 +19,26 @@ export default function HomePage() {
               The Last
             </span>
           </a>
-
-          <nav className="hidden md:flex gap-6 text-gray-700 font-semibold">
-            <a href="#billets" className="hover:text-green-600">
-              Billets
-            </a>
-            <a href="#programme" className="hover:text-green-600">
-              Programme
-            </a>
-            <a href="/about" className="hover:text-green-600">
-              À propos
-            </a>
-          </nav>
-
-          <button id="burgerBtn" className="md:hidden flex flex-col gap-1">
-            <span className="block w-6 h-0.5 bg-black"></span>
-            <span className="block w-6 h-0.5 bg-black"></span>
-            <span className="block w-6 h-0.5 bg-black"></span>
-          </button>
-        </div>
-
-        <div
-          id="mobileMenu"
-          className="hidden flex-col bg-gray-100 p-4 md:hidden font-semibold"
-        >
-          <a href="#billets" className="py-2 hover:text-green-600">
-            Billets
-          </a>
-          <a href="#programme" className="py-2 hover:text-green-600">
-            Programme
-          </a>
-          <a href="/about" className="py-2 hover:text-green-600">
-            À propos
-          </a>
         </div>
       </header>
 
-      {/* HERO */}
-      <section className="hero-bg relative h-[70vh] flex items-center justify-center text-center mt-[80px]">
-        <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-yellow-400"></div>
-        <div className="absolute inset-0 bg-black/50"></div>
-
-        <div className="relative z-10 text-white px-4">
-          <h1 className="text-4xl md:text-6xl font-bold">The Last</h1>
-          <p className="mt-4 text-lg md:text-2xl">
-            Samedi 18 octobre 2025 — dès 19h — GVA Paintball
-          </p>
-          <button
-            onClick={() => createSession("INDIVIDUEL")}
-            className="mt-6 inline-block bg-white text-green-600 hover:bg-green-100 font-bold py-3 px-6 rounded-lg pulse"
+      <section className="h-[70vh] flex flex-col items-center justify-center text-center hero-bg relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-yellow-300 opacity-90" />
+        <div className="relative z-10 text-white">
+          <h1 className="text-5xl font-bold">The Last</h1>
+          <p className="mt-4 text-xl">Samedi 18 octobre 2025 — dès 19h — GVA Paintball</p>
+          <a
+            href="/checkout"
+            className="mt-6 inline-block bg-white text-green-600 hover:bg-green-100 font-bold py-3 px-6 rounded-lg transition-all"
           >
             🎟 Réserver maintenant
-          </button>
+          </a>
         </div>
       </section>
 
-      {/* BILLETS */}
-      <section
-        id="billets"
-        className="fade-in text-center py-16 bg-white transition-all duration-500"
-      >
-        <h2 className="text-3xl font-bold text-green-600 mb-6">
-          Choisis ton billet
-        </h2>
-        <div className="flex flex-col md:flex-row justify-center gap-8">
-          <button
-            onClick={() => createSession("INDIVIDUEL")}
-            className="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-10 rounded-lg shadow-lg"
-          >
-            INDIVIDUEL - 5 CHF
-          </button>
-        </div>
-      </section>
-
-      {/* PROGRAMME */}
-      <section
-        id="programme"
-        className="fade-in py-16 bg-gray-50 text-center transition-all duration-500"
-      >
-        <h2 className="text-3xl font-bold text-green-600 mb-6">Programme</h2>
-        <ul className="space-y-4 text-lg">
-          <li>19h00 — Ouverture des portes</li>
-          <li>21h30 — Warm Up DJ</li>
-          <li>23h00 — DJ principal</li>
-          <li>02h00 — Set techno</li>
-          <li>05h00 — After jusqu’au matin</li>
-        </ul>
-      </section>
-
-      {/* FOOTER */}
       <footer className="bg-gray-100 p-6 text-center text-sm text-gray-500">
-        <div className="flex justify-center gap-6 mb-4">
-          <a
-            href="https://www.instagram.com/gvapaintball?igsh=MTZtcnlna3hlMXlhYg=="
-            target="_blank"
-            className="text-pink-500 hover:text-pink-600 text-2xl"
-          >
-            <i className="fab fa-instagram"></i>
-          </a>
-          <a
-            href="https://www.facebook.com"
-            target="_blank"
-            className="text-blue-600 hover:text-blue-700 text-2xl"
-          >
-            <i className="fab fa-facebook"></i>
-          </a>
-          <a
-            href="https://www.tiktok.com"
-            target="_blank"
-            className="text-black hover:text-gray-700 text-2xl"
-          >
-            <i className="fab fa-tiktok"></i>
-          </a>
-        </div>
         © 2025 GVA Paintball — Tous droits réservés
       </footer>
-    </div>
+    </main>
   );
 }
