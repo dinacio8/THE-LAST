@@ -14,6 +14,7 @@
     "react-dom": "18.2.0",
     "pdfkit": "^0.14.0",
     "qrcode": "^1.5.4",
+    "iconv-lite": "^0.6.3",
     "get-stream": "^8.0.1",
     "pg": "^8.11.3",
     "stripe": "^16.0.0",

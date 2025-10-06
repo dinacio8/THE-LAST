@@ -6,9 +6,12 @@ import path from "path";
 const FONT_FILE = path.join(process.cwd(), "Roboto-Regular.ttf");
 
 if (!fs.existsSync(FONT_FILE)) {
-  console.error("❌ Police Roboto introuvable à la racine du projet.");
+  console.warn("⚠️ Police Roboto introuvable à la racine du projet.");
 }
 
+// ----------------------------
+// 🎟 Génération du ticket PDF
+// ----------------------------
 export async function generateTicket(ticketId, buyer, type) {
   const doc = new PDFDocument({ size: [420, 297], layout: "landscape", margin: 20 });
   const buffers = [];
@@ -43,6 +46,39 @@ export async function generateTicket(ticketId, buyer, type) {
 
   doc.fontSize(9).fillColor("#f3f4f6");
   doc.text("Billet nominatif • Présentez à l’entrée • Non remboursable", 25, 265);
+
+  doc.end();
+  return Buffer.concat(buffers);
+}
+
+// ----------------------------
+// 📄 Génération de la facture PDF
+// ----------------------------
+export async function generateInvoice(invoiceId, buyer, type, price) {
+  const doc = new PDFDocument({ margin: 50 });
+  const buffers = [];
+  doc.on("data", (d) => buffers.push(d));
+
+  doc.font(FONT_FILE).fontSize(20).fillColor("#22c55e").text("FACTURE", { align: "center" });
+  doc.moveDown();
+
+  doc.fontSize(12).fillColor("black");
+  doc.text(`Numéro de facture : ${invoiceId}`);
+  doc.text(`Date : ${new Date().toLocaleDateString("fr-CH")}`);
+  doc.moveDown();
+
+  doc.text(`Client : ${buyer.firstName} ${buyer.lastName}`);
+  doc.text(`Adresse : ${buyer.address}`);
+  doc.text(`Email : ${buyer.email}`);
+  doc.moveDown(2);
+
+  doc.text(`Type de billet : ${type}`);
+  doc.text(`Prix : ${price.toFixed(2)} CHF`);
+  doc.moveDown(2);
+
+  doc.text("Merci pour votre achat et votre participation à THE LAST !");
+  doc.moveDown(2);
+  doc.text("GVA Paintball — Chemin des Coquelicots 29, 1214 Vernier");
 
   doc.end();
   return Buffer.concat(buffers);
