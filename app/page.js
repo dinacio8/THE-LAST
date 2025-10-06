@@ -7,6 +7,7 @@ export const metadata = {
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900">
+      {/* HEADER */}
       <header className="bg-white shadow fixed top-0 w-full z-50">
         <div className="max-w-6xl mx-auto flex justify-between items-center p-4">
           <a href="/" className="flex items-center gap-4">
@@ -22,11 +23,14 @@ export default function HomePage() {
         </div>
       </header>
 
-      <section className="h-[70vh] flex flex-col items-center justify-center text-center hero-bg relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-yellow-300 opacity-90" />
+      {/* HERO */}
+      <section className="h-[70vh] flex flex-col items-center justify-center text-center relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-yellow-400 opacity-90" />
         <div className="relative z-10 text-white">
-          <h1 className="text-5xl font-bold">The Last</h1>
-          <p className="mt-4 text-xl">Samedi 18 octobre 2025 — dès 19h — GVA Paintball</p>
+          <h1 className="text-5xl font-bold drop-shadow-lg">The Last</h1>
+          <p className="mt-4 text-xl">
+            Samedi 18 octobre 2025 — dès 19h — GVA Paintball
+          </p>
           <a
             href="/checkout"
             className="mt-6 inline-block bg-white text-green-600 hover:bg-green-100 font-bold py-3 px-6 rounded-lg transition-all"
@@ -36,6 +40,7 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* FOOTER */}
       <footer className="bg-gray-100 p-6 text-center text-sm text-gray-500">
         © 2025 GVA Paintball — Tous droits réservés
       </footer>
