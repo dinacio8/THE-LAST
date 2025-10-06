@@ -1,12 +1,5 @@
 "use client";
-
 import { useEffect } from "react";
-
-export const metadata = {
-  title: "Paiement réussi - The Last",
-  description:
-    "Confirmation de paiement pour The Last @ GVA Paintball — consulte les détails de ta commande.",
-};
 
 export default function SuccessPage() {
   useEffect(() => {
@@ -57,11 +50,7 @@ export default function SuccessPage() {
       {/* HEADER */}
       <header className="bg-white shadow p-4 flex justify-between items-center">
         <a href="/" className="flex items-center gap-3">
-          <img
-            src="/terrain_GE_gvapaintball_01.png"
-            alt="Logo"
-            className="h-10"
-          />
+          <img src="/terrain_GE_gvapaintball_01.png" alt="Logo" className="h-10" />
           <span className="text-2xl font-bold text-green-600">The Last</span>
         </a>
       </header>
@@ -74,6 +63,7 @@ export default function SuccessPage() {
         <p id="statusMsg" className="text-lg text-gray-700">
           Chargement des informations...
         </p>
+
         <div
           id="details"
           className="hidden mt-6 bg-white shadow-lg rounded-lg p-6 max-w-md text-left"
@@ -108,6 +98,11 @@ export default function SuccessPage() {
           Retour à l'accueil
         </a>
       </section>
+
+      {/* FOOTER */}
+      <footer className="bg-gray-100 p-6 text-center text-sm text-gray-500">
+        © 2025 The Last — Tous droits réservés
+      </footer>
     </main>
   );
 }

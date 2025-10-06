@@ -1,34 +1,25 @@
 "use client";
-
 import { useEffect } from "react";
-
-export const metadata = {
-  title: "Paiement sécurisé - The Last",
-  description:
-    "Paiement sécurisé pour The Last, samedi 18 octobre 2025 dès 19h à Genève.",
-};
 
 export default function CheckoutPage() {
   useEffect(() => {
-    const API_URL = "https://evenement.gvapaintball.com/api/checkout-session";
-
     const form = document.getElementById("checkoutForm");
     const msgBox = document.getElementById("message");
 
-    if (!form) return;
+    const API_URL = "https://evenement.gvapaintball.com/api/checkout-session";
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
+
       msgBox.classList.add("hidden");
       msgBox.textContent = "";
 
-      const params = new URLSearchParams(window.location.search);
       const orderData = {
         firstName: document.getElementById("firstName").value.trim(),
         lastName: document.getElementById("lastName").value.trim(),
         address: document.getElementById("address").value.trim(),
         email: document.getElementById("email").value.trim(),
-        type: params.get("type") || "INDIVIDUEL",
+        type: new URLSearchParams(window.location.search).get("type") || "INDIVIDUEL",
       };
 
       console.log("🧾 Données envoyées :", orderData);
@@ -45,7 +36,7 @@ export default function CheckoutPage() {
         if (!response.ok) {
           const text = await response.text();
           console.error("⚠️ Erreur du serveur :", text);
-          msgBox.textContent = `Erreur du serveur (${response.status})`;
+          msgBox.textContent = "Erreur du serveur (" + response.status + ")";
           msgBox.classList.remove("hidden");
           msgBox.classList.add("text-red-600");
           return;
@@ -137,6 +128,11 @@ export default function CheckoutPage() {
           <div id="message" className="hidden mt-4 text-center text-sm"></div>
         </div>
       </section>
+
+      {/* FOOTER */}
+      <footer className="bg-gray-100 p-6 text-center text-sm text-gray-500">
+        © 2025 The Last — Tous droits réservés
+      </footer>
     </main>
   );
 }
