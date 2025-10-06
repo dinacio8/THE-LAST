@@ -1,3 +1,6 @@
+"use client";
+import { useEffect } from "react";
+
 export const metadata = {
   title: "The Last @ GVA Paintball - 18 octobre 2025",
   description:
@@ -5,6 +8,47 @@ export const metadata = {
 };
 
 export default function HomePage() {
+  useEffect(() => {
+    // Burger menu toggle
+    const burgerBtn = document.getElementById("burgerBtn");
+    const mobileMenu = document.getElementById("mobileMenu");
+    if (burgerBtn && mobileMenu) {
+      burgerBtn.addEventListener("click", () =>
+        mobileMenu.classList.toggle("hidden")
+      );
+      document.querySelectorAll("#mobileMenu a").forEach((link) =>
+        link.addEventListener("click", () =>
+          mobileMenu.classList.add("hidden")
+        )
+      );
+    }
+
+    // Fade-in observer
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) entry.target.classList.add("show");
+      });
+    });
+    document.querySelectorAll(".fade-in").forEach((el) => observer.observe(el));
+
+    // Button “Acheter billet”
+    const buyBtn = document.getElementById("buyStandard");
+    if (buyBtn) {
+      buyBtn.addEventListener("click", () => {
+        const USE_STRIPE = true;
+        if (USE_STRIPE) {
+          window.location.href = "/checkout?type=INDIVIDUEL";
+        } else {
+          window.location.href = "/fake-checkout?type=INDIVIDUEL";
+        }
+      });
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
   return (
     <main className="bg-gray-50 text-gray-900 flex flex-col min-h-screen">
       {/* HEADER */}
@@ -37,6 +81,7 @@ export default function HomePage() {
             <span className="block w-6 h-0.5 bg-black"></span>
           </button>
         </div>
+
         <div
           id="mobileMenu"
           className="hidden flex-col bg-gray-100 p-4 md:hidden font-semibold"
