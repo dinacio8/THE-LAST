@@ -1,100 +1,126 @@
 import Stripe from "stripe";
 import { Resend } from "resend";
-import { generateTicket, generateInvoice, generateNextId } from "../utils/pdfGenerator.js";
-import { pool } from "../lib/db.js";
+import { buffer } from "micro";
+import { generateTicket, generateInvoice } from "../utils/pdfGenerator.js";
+import pkg from "pg";
+const { Pool } = pkg;
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
-export const config = { api: { bodyParser: false } };
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
-// Collecte le raw body sans "micro"
-function getRawBody(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    req.on("data", (c) => chunks.push(c));
-    req.on("end", () => resolve(Buffer.concat(chunks)));
-    req.on("error", reject);
-  });
+// Fonction pour récupérer et incrémenter les compteurs
+async function getNextCounter(type) {
+  const client = await pool.connect();
+  try {
+    const res = await client.query(
+      "UPDATE counters SET value = value + 1 WHERE name = $1 RETURNING value",
+      [type]
+    );
+    if (res.rows.length === 0) {
+      await client.query("INSERT INTO counters (name, value) VALUES ($1, 1)", [type]);
+      return 1;
+    }
+    return res.rows[0].value;
+  } finally {
+    client.release();
+  }
 }
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
-    return res.status(405).end("Method Not Allowed");
+    return res.status(405).end("Méthode non autorisée");
   }
 
   let event;
   try {
-    const raw = await getRawBody(req);
     const sig = req.headers["stripe-signature"];
-    event = stripe.webhooks.constructEvent(raw, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    const buf = await buffer(req);
+    event = stripe.webhooks.constructEvent(buf, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-    console.error("Stripe signature error:", err.message);
+    console.error("❌ Erreur vérification signature Stripe:", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-
-    const meta = session.metadata || {};
-    const type = meta.type || "INDIVIDUEL";
-    const firstName = meta.firstName || "";
-    const lastName = meta.lastName || "";
-    const address = meta.address || "";
-    const email = session.customer_email || "";
+    const firstName = session.metadata?.firstName || "Client";
+    const lastName = session.metadata?.lastName || "";
+    const address = session.metadata?.address || "Adresse non spécifiée";
+    const type = session.metadata?.type || "INDIVIDUEL";
+    const email = session.customer_email;
     const price = type === "VIP" ? 15 : 5;
 
     try {
-      // IDs incrementaux (FAC-YYYY-MM-0001 / TICKET-YYYY-MM-0001)
-      const ticketId = await generateNextId("ticket");
-      const invoiceId = await generateNextId("invoice");
+      const ticketNum = await getNextCounter("ticket");
+      const invoiceNum = await getNextCounter("invoice");
+      const ticketId = `TICKET-2025-10-${String(ticketNum).padStart(4, "0")}`;
+      const invoiceId = `FAC-2025-10-${String(invoiceNum).padStart(4, "0")}`;
 
       const buyer = { firstName, lastName, email, address };
 
-      // Genere les PDFs en buffer (non vides)
+      // Génération PDF (buffers)
       const ticketBuffer = await generateTicket(ticketId, buyer, type);
       const invoiceBuffer = await generateInvoice(invoiceId, buyer, type, price);
 
-      // Enregistre en base
+      // Enregistrement base Neon
       await pool.query(
-        `INSERT INTO orders (
-           invoice_id, ticket_id, first_name, last_name, email, address,
-           ticket_type, price, status, ticket_pdf, invoice_pdf
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'PAID',$9,$10)`,
+        `INSERT INTO orders 
+          (stripe_session_id, ticket_id, invoice_id, first_name, last_name, email, address, price, ticket_pdf, invoice_pdf, created_at, status, type)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW(),'PAID',$11)`,
         [
-          invoiceId,
+          session.id,
           ticketId,
+          invoiceId,
           firstName,
           lastName,
           email,
           address,
-          type,
           price,
           ticketBuffer,
-          invoiceBuffer
+          invoiceBuffer,
+          type,
         ]
       );
 
-      // Envoie l'email
+      console.log(`✅ Commande enregistrée pour ${email}`);
+
+      // Envoi du mail
       await resend.emails.send({
         from: "The Last <evenement@gvapaintball.com>",
         to: email,
-        subject: "Ton billet et ta facture - THE LAST",
-        html:
-          "<p>Merci pour votre achat.</p>" +
-          "<p>Veuillez trouver en pieces jointes votre billet et votre facture.</p>" +
-          "<p>Date: 18/10/2025 - 19h - Lieu: GVA Paintball, Vernier</p>",
+        subject: "🎫 Ton billet pour THE LAST",
+        html: `
+          <p>Salut ${firstName},</p>
+          <p>Merci pour ton achat 🎉</p>
+          <p>Voici ton billet et ta facture pour <strong>THE LAST</strong>.</p>
+          <p><strong>Date :</strong> 18 octobre 2025 — dès 19h</p>
+          <p><strong>Lieu :</strong> GVA Paintball, Chemin des Coquelicots 29, 1214 Vernier</p>
+          <p>Présente ton billet à l’entrée pour accéder à la soirée.</p>
+          <p>À très vite 🔥</p>
+        `,
         attachments: [
-          { filename: `billet-${ticketId}.pdf`, content: ticketBuffer.toString("base64") },
-          { filename: `facture-${invoiceId}.pdf`, content: invoiceBuffer.toString("base64") }
-        ]
+          {
+            filename: `billet-${ticketId}.pdf`,
+            content: ticketBuffer.toString("base64"),
+          },
+          {
+            filename: `facture-${invoiceId}.pdf`,
+            content: invoiceBuffer.toString("base64"),
+          },
+        ],
       });
 
-      console.log(`OK: stored and mailed to ${email}`);
+      console.log(`✅ Mail envoyé à ${email}`);
     } catch (err) {
-      console.error("Processing error:", err);
-      // On renvoie quand meme 200 a Stripe pour eviter les retries infinis si l'erreur vient du mail
+      console.error("❌ Erreur traitement commande:", err);
     }
   }
 
