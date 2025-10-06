@@ -1,22 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // ✅ Active le mode strict React (bonne pratique)
   reactStrictMode: true,
 
-  // ✅ Nécessaire pour le nouvel App Router
-  experimental: {
-    appDir: true,
-  },
-
-  // ✅ Permet de générer une version standalone (utile pour Vercel ou Docker)
+  // ✅ Permet d’exécuter l’app dans Vercel / Docker sans dépendances inutiles
   output: "standalone",
 
-  // ✅ Si ton projet doit lire des fichiers depuis /public ou /lib (comme ton Roboto-Regular.ttf)
+  // ✅ Corrige les modules Node (fs utilisé par pdfkit, etc.)
   webpack(config) {
     config.resolve.fallback = { fs: false };
     return config;
   },
 
-  // ✅ Redirections automatiques si jamais des .html sont demandés
+  // ✅ Redirections automatiques depuis tes anciens fichiers .html
   async redirects() {
     return [
       {
@@ -42,6 +38,11 @@ const nextConfig = {
       {
         source: "/admin.html",
         destination: "/admin",
+        permanent: true,
+      },
+      {
+        source: "/about.html",
+        destination: "/about",
         permanent: true,
       },
     ];
