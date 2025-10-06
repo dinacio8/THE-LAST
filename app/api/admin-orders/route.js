@@ -1,15 +1,13 @@
 import { Pool } from "pg";
+import { NextResponse } from "next/server";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 });
 
-export default async function handler(req, res) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Méthode non autorisée" });
-  }
-
+// 📋 Récupère toutes les commandes pour la page Admin
+export async function GET() {
   try {
     const result = await pool.query(`
       SELECT
@@ -24,9 +22,15 @@ export default async function handler(req, res) {
       ORDER BY created_at DESC
     `);
 
-    res.status(200).json(result.rows);
+    return NextResponse.json(result.rows);
   } catch (error) {
     console.error("❌ Erreur récupération commandes:", error);
-    res.status(500).json({ error: "Erreur récupération commandes", details: error.message });
+    return NextResponse.json(
+      {
+        error: "Erreur récupération commandes",
+        details: error.message,
+      },
+      { status: 500 }
+    );
   }
 }
