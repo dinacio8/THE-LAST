@@ -1,53 +1,101 @@
 import PDFDocument from "pdfkit";
-import getStream from "get-stream";
-import pkg from "pg";
-const { Pool } = pkg;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+import QRCode from "qrcode";
 
 export async function generateTicket(ticketId, buyer, type) {
-  const doc = new PDFDocument({ margin: 40, size: "A6", layout: "landscape" });
+  const doc = new PDFDocument({ size: [420, 297], layout: "landscape", margin: 20 });
   const buffers = [];
   doc.on("data", buffers.push.bind(buffers));
 
   // Dégradé vert
-  const gradient = doc.linearGradient(0, 0, 400, 0);
-  gradient.stop(0, "#16a34a").stop(1, "#4ade80");
-  doc.rect(0, 0, 600, 300).fill(gradient);
+  const gradient = doc.linearGradient(0, 0, 420, 297);
+  gradient.stop(0, "#16a34a").stop(1, "#86efac");
+  doc.rect(0, 0, 420, 297).fill(gradient);
 
-  doc.fillColor("#fff").fontSize(20).font("Helvetica-Bold").text("🎟 THE LAST", 40, 30);
-  doc.moveDown();
-  doc.fontSize(14).text(`Billet : ${ticketId}`);
-  doc.moveDown();
-  doc.fontSize(12).text(`Nom : ${buyer.firstName} ${buyer.lastName}`);
-  doc.text(`Email : ${buyer.email}`);
-  doc.text(`Type : ${type}`);
-  doc.text(`Prix : ${type === "VIP" ? "15 CHF" : "5 CHF"}`);
-  doc.text(`Date : 18 octobre 2025 — dès 19h`);
-  doc.text(`Lieu : GVA Paintball, Vernier`);
+  // Logo
+  try {
+    doc.image("terrain_GE_gvapaintball_01.png", 15, 15, { width: 80 });
+  } catch {
+    console.warn("Logo introuvable — vérifie son chemin à la racine.");
+  }
+
+  // Texte principal
+  doc.fillColor("white").fontSize(24).font("Helvetica-Bold");
+  doc.text("THE LAST - Entrée Officielle", 120, 25);
+  doc.fontSize(16).text("GVA Paintball - Genève", 120, 55);
+  doc.moveTo(20, 90).lineTo(400, 90).strokeColor("white").stroke();
+
+  // Infos billet
+  doc.fontSize(14).font("Helvetica");
+  doc.text(`Titulaire : ${buyer.firstName} ${buyer.lastName}`, 25, 110);
+  doc.text(`Type : ${type}`, 25, 130);
+  doc.text(`Date : 18 octobre 2025 - 19h00`, 25, 150);
+  doc.text(`Adresse : Chemin des Coquelicots 29, 1214 Vernier`, 25, 170);
+  doc.text(`ID Billet : ${ticketId}`, 25, 190);
+
+  // QR code
+  const qrData = `https://evenement.gvapaintball.com/verify?ticket=${ticketId}`;
+  const qrImage = await QRCode.toDataURL(qrData);
+  const qrBase64 = qrImage.split(",")[1];
+  const qrBuffer = Buffer.from(qrBase64, "base64");
+  doc.image(qrBuffer, 320, 110, { width: 80, height: 80 });
+
+  // Pied de page
+  doc.fontSize(10).fillColor("white").text("Présentez ce billet à l'entrée • Non remboursable", 25, 265);
+
   doc.end();
-
   return Buffer.concat(buffers);
 }
 
 export async function generateInvoice(invoiceId, buyer, type, price) {
-  const doc = new PDFDocument({ margin: 40, size: "A4" });
+  const doc = new PDFDocument({ size: "A4", margin: 50 });
   const buffers = [];
   doc.on("data", buffers.push.bind(buffers));
 
-  doc.fillColor("#000").font("Helvetica-Bold").fontSize(18).text("FACTURE", { align: "right" });
-  doc.moveDown();
-  doc.fontSize(12).text(`N° de facture : ${invoiceId}`, { align: "right" });
-  doc.text(`Date : ${new Date().toLocaleDateString("fr-CH")}`, { align: "right" });
+  // Logo + titre
+  try {
+    doc.image("terrain_GE_gvapaintball_01.png", 50, 40, { width: 100 });
+  } catch {
+    console.warn("Logo introuvable pour facture.");
+  }
+
+  doc.fontSize(20).fillColor("#16a34a").font("Helvetica-Bold");
+  doc.text("FACTURE", 400, 50, { align: "right" });
+  doc.fontSize(12).fillColor("black");
+  doc.text(`N° ${invoiceId}`, 400, 75, { align: "right" });
+  doc.text(`Date : ${new Date().toLocaleDateString("fr-CH")}`, 400, 90, { align: "right" });
+
+  // Client
   doc.moveDown(2);
-  doc.text(`À : ${buyer.firstName} ${buyer.lastName}`);
+  doc.fontSize(12).text(`Facturé à :`, 50, 150);
+  doc.text(`${buyer.firstName} ${buyer.lastName}`);
   doc.text(buyer.address);
   doc.text(buyer.email);
-  doc.moveDown(2);
-  doc.text(`Description : Billet ${type}`);
-  doc.text(`Montant TTC : ${price.toFixed(2)} CHF`);
-  doc.moveDown(2);
-  doc.text("Merci pour votre achat et à bientôt à l'événement THE LAST !");
-  doc.end();
 
+  // Détails achat
+  doc.moveDown(2);
+  doc.text("Description", 50, 260);
+  doc.text("Quantité", 300, 260);
+  doc.text("Prix (CHF)", 450, 260);
+  doc.moveTo(50, 275).lineTo(540, 275).stroke();
+
+  doc.font("Helvetica");
+  doc.text(`Billet ${type} - The Last`, 50, 290);
+  doc.text("1", 320, 290);
+  doc.text(`${price.toFixed(2)} CHF`, 450, 290);
+
+  // Total
+  doc.moveTo(50, 320).lineTo(540, 320).strokeColor("#16a34a").stroke();
+  doc.font("Helvetica-Bold").text("Total TTC :", 380, 340);
+  doc.text(`${price.toFixed(2)} CHF`, 450, 340);
+
+  // Pied de page
+  doc.fontSize(10).fillColor("gray").text(
+    "Merci pour votre confiance !\nTHE LAST - GVA Paintball, Genève",
+    50,
+    760,
+    { align: "center" }
+  );
+
+  doc.end();
   return Buffer.concat(buffers);
 }
