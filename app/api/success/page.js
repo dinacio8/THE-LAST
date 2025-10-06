@@ -1,88 +1,113 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+
+export const metadata = {
+  title: "Paiement réussi - The Last",
+  description:
+    "Confirmation de paiement pour The Last @ GVA Paintball — consulte les détails de ta commande.",
+};
 
 export default function SuccessPage() {
-  const [order, setOrder] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const session_id = params.get("session_id");
+    async function loadStatus() {
+      const params = new URLSearchParams(window.location.search);
+      const session_id = params.get("session_id");
 
-    if (!session_id) {
-      setError("❌ Impossible de retrouver les informations de la commande.");
-      setLoading(false);
-      return;
-    }
+      if (!session_id) {
+        document.getElementById("statusMsg").textContent =
+          "❌ Impossible de retrouver les infos de commande.";
+        return;
+      }
 
-    async function fetchStatus() {
       try {
         const res = await fetch(`/api/order-status?session_id=${session_id}`);
+        const data = await res.json();
+
         if (!res.ok) {
-          const errText = await res.text();
-          console.error("Erreur API:", errText);
-          setError("⚠️ Commande introuvable ou erreur serveur.");
-          setLoading(false);
+          document.getElementById("statusMsg").textContent =
+            "❌ Commande introuvable ou erreur serveur.";
+          console.error(data);
           return;
         }
-        const data = await res.json();
-        setOrder(data);
+
+        document.getElementById("statusMsg").classList.add("hidden");
+        document.getElementById("details").classList.remove("hidden");
+
+        document.getElementById("name").textContent = `${data.firstName} ${data.lastName}`;
+        document.getElementById("type").textContent = data.type;
+        document.getElementById("price").textContent = data.price;
+        document.getElementById("email").textContent = data.email;
+        document.getElementById("invoice").textContent = data.invoice;
+        document.getElementById("ticket").textContent = data.ticket;
+        document.getElementById("sent").textContent =
+          data.status === "sent" ? "✅ Envoyé" : "⏳ En cours d’envoi";
       } catch (err) {
-        console.error("Erreur communication serveur:", err);
-        setError("⚠️ Erreur de communication avec le serveur.");
-      } finally {
-        setLoading(false);
+        console.error("Erreur communication API:", err);
+        document.getElementById("statusMsg").textContent =
+          "⚠️ Erreur de communication avec le serveur.";
       }
     }
 
-    fetchStatus();
+    loadStatus();
   }, []);
 
-  if (loading) {
-    return (
-      <main className="flex flex-col items-center justify-center flex-1 min-h-screen text-center">
-        <h1 className="text-2xl text-green-600 font-semibold mb-4">
-          Chargement de ton paiement...
-        </h1>
-      </main>
-    );
-  }
+  return (
+    <main className="bg-gray-50 text-gray-900 flex flex-col min-h-screen">
+      {/* HEADER */}
+      <header className="bg-white shadow p-4 flex justify-between items-center">
+        <a href="/" className="flex items-center gap-3">
+          <img
+            src="/terrain_GE_gvapaintball_01.png"
+            alt="Logo"
+            className="h-10"
+          />
+          <span className="text-2xl font-bold text-green-600">The Last</span>
+        </a>
+      </header>
 
-  if (error) {
-    return (
-      <main className="flex flex-col items-center justify-center flex-1 min-h-screen text-center">
-        <h1 className="text-3xl font-bold text-red-600 mb-4">❌ Erreur</h1>
-        <p className="text-gray-700">{error}</p>
+      {/* MAIN */}
+      <section className="flex flex-col items-center justify-center flex-1 p-6 text-center">
+        <h1 className="text-3xl font-bold text-green-600 mb-6">
+          🎉 Paiement confirmé !
+        </h1>
+        <p id="statusMsg" className="text-lg text-gray-700">
+          Chargement des informations...
+        </p>
+        <div
+          id="details"
+          className="hidden mt-6 bg-white shadow-lg rounded-lg p-6 max-w-md text-left"
+        >
+          <p>
+            <strong>Nom :</strong> <span id="name"></span>
+          </p>
+          <p>
+            <strong>Type de billet :</strong> <span id="type"></span>
+          </p>
+          <p>
+            <strong>Prix :</strong> <span id="price"></span> CHF
+          </p>
+          <p>
+            <strong>Email :</strong> <span id="email"></span>
+          </p>
+          <p>
+            <strong>Facture :</strong> <span id="invoice"></span>
+          </p>
+          <p>
+            <strong>Ticket :</strong> <span id="ticket"></span>
+          </p>
+          <p>
+            <strong>Statut :</strong> <span id="sent"></span>
+          </p>
+        </div>
+
         <a
           href="/"
-          className="mt-6 inline-block bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg"
+          className="mt-8 inline-block bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg"
         >
-          Retour à l’accueil
+          Retour à l'accueil
         </a>
-      </main>
-    );
-  }
-
-  return (
-    <main className="flex flex-col items-center justify-center flex-1 min-h-screen text-center">
-      <h1 className="text-3xl font-bold text-green-600 mb-4">
-        🎉 Paiement confirmé !
-      </h1>
-      <div className="bg-white shadow-lg rounded-lg p-6 max-w-md text-left">
-        <p><strong>Nom :</strong> {order.firstName} {order.lastName}</p>
-        <p><strong>Email :</strong> {order.email}</p>
-        <p><strong>Type :</strong> {order.type}</p>
-        <p><strong>Prix :</strong> {order.price} CHF</p>
-        <p><strong>Statut :</strong> {order.status}</p>
-      </div>
-      <a
-        href="/"
-        className="mt-6 inline-block bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg"
-      >
-        Retour à l’accueil
-      </a>
+      </section>
     </main>
   );
 }
