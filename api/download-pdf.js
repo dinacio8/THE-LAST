@@ -1,28 +1,50 @@
-import { pool } from "../lib/db.js";
+import pkg from "pg";
+const { Pool } = pkg;
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+});
 
 export default async function handler(req, res) {
-  const { id, type } = req.query;
-
-  if (!id || !type) {
-    return res.status(400).json({ error: "Paramètres manquants" });
-  }
-
   try {
-    const column = type === "ticket" ? "ticket_pdf" : "invoice_pdf";
-    const filename = type === "ticket" ? "billet.pdf" : "facture.pdf";
+    const { id, type } = req.query;
 
-    const result = await pool.query(⁠ SELECT ${column} FROM orders WHERE id = $1 ⁠, [id]);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Fichier non trouvé" });
+    if (!id || !type) {
+      return res.status(400).json({ error: "Paramètres manquants : id ou type." });
     }
 
-    const buffer = result.rows[0][column];
+    // On vérifie que le type est valide
+    if (!["ticket", "invoice"].includes(type)) {
+      return res.status(400).json({ error: "Type invalide, doit être 'ticket' ou 'invoice'." });
+    }
+
+    // 🔍 Récupération du PDF depuis la base
+    const query = `
+      SELECT ${type === "ticket" ? "ticket_pdf" : "invoice_pdf"} AS pdf_data,
+             ${type === "ticket" ? "ticket_id" : "invoice_id"} AS file_name
+      FROM orders
+      WHERE id = $1
+    `;
+    const { rows } = await pool.query(query, [id]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Aucune commande trouvée avec cet ID." });
+    }
+
+    const pdfData = rows[0].pdf_data;
+    const fileName = rows[0].file_name || `${type}-${id}`;
+
+    if (!pdfData) {
+      return res.status(404).json({ error: "PDF introuvable ou vide dans la base de données." });
+    }
+
+    // 🔽 Envoi du PDF au navigateur
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", ⁠ attachment; filename="${filename}" ⁠);
-    res.send(Buffer.from(buffer));
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}.pdf"`);
+    res.send(Buffer.from(pdfData, "base64"));
   } catch (err) {
-    console.error("Erreur téléchargement PDF:", err);
-    res.status(500).json({ error: "Erreur serveur", details: err.message });
+    console.error("❌ Erreur download-pdf:", err);
+    res.status(500).json({ error: "Erreur interne du serveur", details: err.message });
   }
 }
