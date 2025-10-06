@@ -47,14 +47,6 @@ export default function SuccessPage() {
 
   return (
     <main className="bg-gray-50 text-gray-900 flex flex-col min-h-screen">
-      {/* HEADER */}
-      <header className="bg-white shadow p-4 flex justify-between items-center">
-        <a href="/" className="flex items-center gap-3">
-          <img src="/terrain_GE_gvapaintball_01.png" alt="Logo" className="h-10" />
-          <span className="text-2xl font-bold text-green-600">The Last</span>
-        </a>
-      </header>
-
       {/* MAIN */}
       <section className="flex flex-col items-center justify-center flex-1 p-6 text-center">
         <h1 className="text-3xl font-bold text-green-600 mb-6">
@@ -98,11 +90,6 @@ export default function SuccessPage() {
           Retour à l'accueil
         </a>
       </section>
-
-      {/* FOOTER */}
-      <footer className="bg-gray-100 p-6 text-center text-sm text-gray-500">
-        © 2025 The Last — Tous droits réservés
-      </footer>
     </main>
   );
 }
