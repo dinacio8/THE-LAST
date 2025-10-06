@@ -65,9 +65,6 @@ export default function HomePageClient() {
             <a href="#programme" className="hover:text-green-600">
               Programme
             </a>
-            <a href="/about" className="hover:text-green-600">
-              À propos
-            </a>
           </nav>
           <button id="burgerBtn" className="md:hidden flex flex-col gap-1">
             <span className="block w-6 h-0.5 bg-black"></span>

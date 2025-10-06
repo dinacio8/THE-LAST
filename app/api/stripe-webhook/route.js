@@ -1,116 +1,87 @@
 import Stripe from "stripe";
-import { Resend } from "resend";
-import pkg from "pg";
-import { generateTicket, generateInvoice } from "../../../utils/pdfGenerator.js";
 
-const { Pool } = pkg;
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const resend = new Resend(process.env.RESEND_API_KEY);
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
-// ✅ Configuration Next.js 14
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+// ⚠ Nécessaire pour lire le corps brut (Stripe envoie du raw JSON signé)
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
-// Génère un compteur incrémental pour ticket / facture
-async function getNextCounter(name) {
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    await client.query(
-      `INSERT INTO counters (name, value) VALUES ($1, 1)
-       ON CONFLICT (name) DO UPDATE SET value = counters.value + 1`,
-      [name]
-    );
-    const { rows } = await client.query("SELECT value FROM counters WHERE name = $1", [name]);
-    await client.query("COMMIT");
-    return rows[0].value;
-  } catch (err) {
-    await client.query("ROLLBACK");
-    console.error("Erreur compteur:", err);
-    throw err;
-  } finally {
-    client.release();
-  }
-}
-
-// ✅ Webhook Stripe
 export async function POST(req) {
+  const sig = req.headers.get("stripe-signature");
+  const rawBody = await req.text(); // lecture brute du body
   let event;
+
   try {
-    const sig = req.headers.get("stripe-signature");
-    const rawBody = Buffer.from(await req.arrayBuffer()); // ✅ corps brut Next 14
-    event = stripe.webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    event = stripe.webhooks.constructEvent(
+      rawBody,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
   } catch (err) {
-    console.error("❌ Erreur Webhook Stripe:", err.message);
+    console.error("❌ Signature webhook invalide :", err.message);
     return new Response(`Webhook Error: ${err.message}`, { status: 400 });
   }
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
-    const email = session.customer_email;
-    const { firstName, lastName, address, type } = session.metadata;
+  // 🧾 Analyse de l’événement
+  try {
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object;
 
-    try {
-      const ticketNum = await getNextCounter("ticket");
-      const invoiceNum = await getNextCounter("invoice");
+        console.log("✅ Paiement reçu pour :", session.customer_email);
 
-      const ticketId = `TICKET-2025-10-${String(ticketNum).padStart(4, "0")}`;
-      const invoiceId = `FAC-2025-10-${String(invoiceNum).padStart(4, "0")}`;
+        // 🔹 Exemple : on peut stocker la commande dans une base (à adapter)
+        // await saveOrderToDatabase(session);
 
-      const buyer = { firstName, lastName, email, address };
-      const price = 5.0;
+        // 🔹 Exemple : envoyer un mail de confirmation (via Resend ou autre)
+        await sendConfirmationEmail(session);
 
-      console.log(`🎟 Génération PDF pour ${email}...`);
-      const ticketPDF = await generateTicket(ticketId, buyer, "INDIVIDUEL");
-      const invoicePDF = await generateInvoice(invoiceId, buyer, "INDIVIDUEL", price);
+        break;
+      }
 
-      await pool.query(
-        `INSERT INTO orders 
-        (stripe_session_id, ticket_id, invoice_id, first_name, last_name, email, address, price, ticket_pdf, invoice_pdf, status, type)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'PAID','INDIVIDUEL')`,
-        [
-          session.id,
-          ticketId,
-          invoiceId,
-          firstName,
-          lastName,
-          email,
-          address,
-          price,
-          ticketPDF,
-          invoicePDF,
-        ]
-      );
-
-      console.log("✅ Données enregistrées dans la base.");
-
-      await resend.emails.send({
-        from: "The Last <evenement@gvapaintball.com>",
-        to: email,
-        subject: "🎫 Ton billet pour THE LAST",
-        html: `
-          <p>Salut ${firstName},</p>
-          <p>Merci pour ton achat 🎉</p>
-          <p>Voici ton billet et ta facture pour <strong>THE LAST</strong>.</p>
-          <p><strong>Date :</strong> 18 octobre 2025 — dès 19h</p>
-          <p><strong>Lieu :</strong> GVA Paintball, Chemin des Coquelicots 29, 1214 Vernier</p>
-          <p>Présente ton billet à l’entrée pour accéder à la soirée.</p>
-          <p>À très vite 🔥</p>
-        `,
-        attachments: [
-          { filename: `${ticketId}.pdf`, content: ticketPDF.toString("base64") },
-          { filename: `${invoiceId}.pdf`, content: invoicePDF.toString("base64") },
-        ],
-      });
-
-      console.log(`📩 Mail envoyé à ${email}`);
-    } catch (error) {
-      console.error("❌ Erreur traitement commande:", error);
+      default:
+        console.log(`ℹ️ Événement non géré : ${event.type}`);
     }
-  }
 
-  return new Response(JSON.stringify({ received: true }), {
-    headers: { "Content-Type": "application/json" },
-  });
+    return new Response("Webhook reçu", { status: 200 });
+  } catch (err) {
+    console.error("Erreur traitement webhook:", err);
+    return new Response("Erreur interne serveur", { status: 500 });
+  }
+}
+
+/**
+ * Exemple d’envoi d’un mail avec Resend
+ */
+async function sendConfirmationEmail(session) {
+  try {
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    const email = session.customer_email;
+    const name = `${session.metadata.firstName} ${session.metadata.lastName}`;
+    const type = session.metadata.type;
+
+    const result = await resend.emails.send({
+      from: "GVA Paintball <noreply@gvapaintball.com>",
+      to: email,
+      subject: "🎟 Confirmation de ton billet - The Last",
+      html: `
+        <p>Bonjour ${name},</p>
+        <p>Ton paiement pour <strong>The Last @ GVA Paintball</strong> est confirmé !</p>
+        <p>Type de billet : <strong>${type}</strong></p>
+        <p>Tu peux présenter cet email à l’entrée pour valider ton ticket.</p>
+        <p>À très bientôt 🎧🔥</p>
+        <hr />
+        <small>© 2025 GVA Paintball</small>
+      `,
+    });
+
+    console.log("📧 Mail envoyé à", email, result);
+  } catch (err) {
+    console.error("Erreur envoi mail Resend:", err);
+  }
 }
