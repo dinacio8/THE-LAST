@@ -2,21 +2,79 @@ import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { Pool } from "pg";
-import fs from "fs";
-import path from "path";
-import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
+// Empêche la mise en cache statique
 export const dynamic = "force-dynamic";
 
-// 🗝️ Initialisations
+// 🔑 Initialisation des modules externes
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
-// 📄 Police embarquée (Roboto Regular)
-const fontPath = path.join(process.cwd(), "app/api/stripe-webhook/fonts/Roboto-Regular.ttf");
+/**
+ * Génère un billet PDF pour l'événement
+ */
+async function generateTicketPDF(session, qrDataUrl) {
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([595.28, 841.89]); // A4
+  const { height } = page.getSize();
 
+  const titleFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const bodyFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+  // Titre
+  page.drawText("🎟 THE LAST @ GVA Paintball", {
+    x: 80,
+    y: height - 100,
+    size: 22,
+    font: titleFont,
+    color: rgb(0.13, 0.77, 0.37),
+  });
+
+  // Détails
+  const info = [
+    `Billet : ${session.metadata.type}`,
+    `Date : Samedi 18 octobre 2025`,
+    `Lieu : GVA Paintball, Genève`,
+    `Nom : ${session.metadata.firstName} ${session.metadata.lastName}`,
+    `Email : ${session.customer_details.email}`,
+    `Montant payé : ${session.amount_total / 100} CHF`,
+  ];
+
+  let y = height - 150;
+  for (const line of info) {
+    page.drawText(line, { x: 80, y, size: 13, font: bodyFont, color: rgb(0, 0, 0) });
+    y -= 20;
+  }
+
+  // QR Code
+  const qrImageBytes = Buffer.from(qrDataUrl.split(",")[1], "base64");
+  const qrImage = await pdfDoc.embedPng(qrImageBytes);
+  const qrDims = qrImage.scale(0.4);
+  page.drawImage(qrImage, {
+    x: 220,
+    y: height - 400,
+    width: qrDims.width,
+    height: qrDims.height,
+  });
+
+  page.drawText("Présente ce billet à l’entrée.", {
+    x: 180,
+    y: height - 440,
+    size: 12,
+    font: bodyFont,
+    color: rgb(0.3, 0.3, 0.3),
+  });
+
+  const pdfBytes = await pdfDoc.save();
+  return Buffer.from(pdfBytes);
+}
+
+/**
+ * Webhook Stripe
+ */
 export async function POST(req) {
   const sig = req.headers.get("stripe-signature");
   const body = await req.text();
@@ -29,57 +87,21 @@ export async function POST(req) {
     return NextResponse.json({ error: err.message }, { status: 400 });
   }
 
+  // Gestion du paiement réussi
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
     console.log("✅ Paiement confirmé :", session.id);
 
     try {
-      // 🔗 QR code vers la page succès
+      // 🔗 QR Code vers la page success
       const qrDataUrl = await QRCode.toDataURL(
         `https://evenement.gvapaintball.com/success?session_id=${session.id}`
       );
 
-      // 🧾 Génération du billet PDF (sans Helvetica)
-      const pdfBuffer = await new Promise((resolve, reject) => {
-        const doc = new PDFDocument({ size: "A4", margin: 50 });
-        const chunks = [];
-        doc.on("data", (chunk) => chunks.push(chunk));
-        doc.on("end", () => resolve(Buffer.concat(chunks)));
-        doc.on("error", (err) => reject(err));
+      // 🧾 Génération du PDF
+      const pdfBuffer = await generateTicketPDF(session, qrDataUrl);
 
-        // 👇 Police locale (Roboto)
-        if (fs.existsSync(fontPath)) {
-          doc.font(fontPath);
-        } else {
-          console.warn("⚠️ Police Roboto introuvable, fallback à la police standard PDFKit");
-        }
-
-        // Contenu PDF
-        doc.fontSize(22).fillColor("#22c55e").text("🎟 The Last @ GVA Paintball", { align: "center" });
-        doc.moveDown();
-        doc.fontSize(12).fillColor("black");
-        doc.text(`Billet : ${session.metadata.type}`, { align: "center" });
-        doc.text(`Date : Samedi 18 octobre 2025`, { align: "center" });
-        doc.text(`Lieu : GVA Paintball, Genève`, { align: "center" });
-        doc.moveDown();
-
-        doc.text(`Nom : ${session.metadata.firstName} ${session.metadata.lastName}`, { align: "center" });
-        doc.text(`Email : ${session.customer_details.email}`, { align: "center" });
-        doc.moveDown();
-        doc.text(`Montant payé : ${session.amount_total / 100} CHF`, { align: "center" });
-        doc.moveDown(2);
-
-        doc.image(qrDataUrl, { fit: [150, 150], align: "center", valign: "center" });
-        doc.moveDown(2);
-        doc.fontSize(10).fillColor("#555").text(
-          "Présente ce billet avec le QR code à l’entrée. Merci pour ta réservation !",
-          { align: "center" }
-        );
-
-        doc.end();
-      });
-
-      // 💾 Enregistrement dans la base
+      // 💾 Insertion en base
       const result = await pool.query(
         `INSERT INTO orders (session_id, first_name, last_name, email, type, amount)
          VALUES ($1, $2, $3, $4, $5, $6)
@@ -97,10 +119,10 @@ export async function POST(req) {
       if (result.rowCount > 0) {
         console.log("🗃 Commande enregistrée :", result.rows[0]);
       } else {
-        console.warn("⚠️ Commande déjà existante pour :", session.id);
+        console.warn("⚠️ Commande déjà existante :", session.id);
       }
 
-      // 📧 Envoi du mail avec billet
+      // 📧 Envoi du mail
       await resend.emails.send({
         from: "GVA Paintball <noreply@evenement.gvapaintball.com>",
         to: session.customer_details.email,
@@ -123,9 +145,9 @@ export async function POST(req) {
         ],
       });
 
-      console.log("📧 Mail avec billet envoyé à", session.customer_details.email);
+      console.log("📧 Mail envoyé à :", session.customer_details.email);
     } catch (err) {
-      console.error("🔥 Erreur lors de la génération/envoi :", err);
+      console.error("🔥 Erreur lors du traitement :", err);
       return NextResponse.json({ error: err.message }, { status: 500 });
     }
   }
