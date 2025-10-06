@@ -48,7 +48,8 @@ export async function POST(req) {
         doc.on("end", () => resolve(Buffer.concat(chunks)));
         doc.on("error", (err) => reject(err));
 
-        doc.fontSize(20).fillColor("#22c55e").text("🎟 The Last @ GVA Paintball", { align: "center" });
+        doc.font("Courier");
+doc.fontSize(20).fillColor("#22c55e").text("🎟 The Last @ GVA Paintball", { align: "center" });
         doc.moveDown();
         doc.fontSize(12).fillColor("black").text(`Billet : ${session.metadata.type}`, { align: "center" });
         doc.text(`Date : Samedi 18 octobre 2025`, { align: "center" });
