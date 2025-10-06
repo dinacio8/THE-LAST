@@ -3,7 +3,6 @@ import { Resend } from "resend";
 import { buffer } from "micro";
 import pkg from "pg";
 import PDFDocument from "pdfkit";
-import getStream from "get-stream";
 
 const { Pool } = pkg;
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -20,34 +19,42 @@ export const config = {
   },
 };
 
-// 🔧 Fonction utilitaire pour créer un PDF mémoire
+// ✅ Génère un PDF en mémoire et retourne un Buffer
 async function createPDF(type, buyer, price, id) {
-  const doc = new PDFDocument({ size: "A4", margin: 40 });
-  let stream = doc.pipe(getStream.buffer());
+  return new Promise((resolve, reject) => {
+    try {
+      const chunks = [];
+      const doc = new PDFDocument({ size: "A4", margin: 40 });
 
-  // En-tête
-  doc.fontSize(22).fillColor("#16a34a").text(type === "ticket" ? "🎟 Billet THE LAST" : "🧾 Facture THE LAST");
-  doc.moveDown();
-  doc.fillColor("black").fontSize(14);
-  doc.text(`Nom : ${buyer.firstName} ${buyer.lastName}`);
-  doc.text(`Email : ${buyer.email}`);
-  doc.text(`Adresse : ${buyer.address}`);
-  doc.moveDown();
-  doc.text(`Identifiant : ${id}`);
-  doc.moveDown();
+      doc.on("data", (chunk) => chunks.push(chunk));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
 
-  if (type === "ticket") {
-    doc.text("Entrée valable pour l’événement THE LAST", { underline: true });
-    doc.text("Date : 18 octobre 2025 - 19h00");
-    doc.text("Lieu : GVA Paintball, Chemin des Coquelicots 29, 1214 Vernier");
-  } else {
-    doc.text("Facture pour achat de billet THE LAST", { underline: true });
-    doc.text(`Montant total : ${price.toFixed(2)} CHF (TTC)`);
-    doc.text(`Mode de paiement : Stripe`);
-  }
+      doc.fontSize(22).fillColor("#16a34a")
+        .text(type === "ticket" ? "🎟 Billet THE LAST" : "🧾 Facture THE LAST");
+      doc.moveDown();
+      doc.fillColor("black").fontSize(14);
+      doc.text(`Nom : ${buyer.firstName} ${buyer.lastName}`);
+      doc.text(`Email : ${buyer.email}`);
+      doc.text(`Adresse : ${buyer.address}`);
+      doc.moveDown();
+      doc.text(`Identifiant : ${id}`);
+      doc.moveDown();
 
-  doc.end();
-  return await stream;
+      if (type === "ticket") {
+        doc.text("Entrée valable pour l’événement THE LAST", { underline: true });
+        doc.text("Date : 18 octobre 2025 - 19h00");
+        doc.text("Lieu : GVA Paintball, Chemin des Coquelicots 29, 1214 Vernier");
+      } else {
+        doc.text("Facture pour achat de billet THE LAST", { underline: true });
+        doc.text(`Montant total : ${price.toFixed(2)} CHF (TTC)`);
+        doc.text(`Mode de paiement : Stripe`);
+      }
+
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
 }
 
 export default async function handler(req, res) {
@@ -60,7 +67,6 @@ export default async function handler(req, res) {
   try {
     const sig = req.headers["stripe-signature"];
     const buf = await buffer(req);
-
     event = stripe.webhooks.constructEvent(buf, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     console.error("❌ Erreur Webhook Stripe:", err.message);
@@ -74,11 +80,11 @@ export default async function handler(req, res) {
     const price = type === "VIP" ? 15 : 5;
 
     try {
-      // 🔢 Génération d’un numéro incrémental
-      const { rows: counterRows } = await pool.query(
+      // 🔢 Génération d’un numéro incrémental depuis counters
+      const { rows } = await pool.query(
         "UPDATE counters SET value = value + 1 WHERE name = 'order' RETURNING value"
       );
-      const nextId = counterRows[0]?.value || 1;
+      const nextId = rows[0]?.value || 1;
 
       const ticketId = `TICKET-2025-10-${String(nextId).padStart(4, "0")}`;
       const invoiceId = `FAC-2025-10-${String(nextId).padStart(4, "0")}`;
@@ -86,14 +92,16 @@ export default async function handler(req, res) {
 
       console.log(`🎟 Génération du billet + facture pour ${email} (#${nextId})`);
 
-      // ✅ Génération des PDF complets en mémoire
+      // ✅ Génération PDF en mémoire
       const ticketBuffer = await createPDF("ticket", buyer, price, ticketId);
       const invoiceBuffer = await createPDF("invoice", buyer, price, invoiceId);
 
-      // ✅ Enregistrement dans Neon
+      // ✅ Enregistrement dans la base
       await pool.query(
-        `INSERT INTO orders (stripe_session_id, ticket_id, invoice_id, first_name, last_name, email, address, price, ticket_pdf, invoice_pdf, status, type)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        `INSERT INTO orders (
+          stripe_session_id, ticket_id, invoice_id, first_name, last_name, email, address, price,
+          ticket_pdf, invoice_pdf, status, type
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
         [
           session.id,
           ticketId,
@@ -103,14 +111,14 @@ export default async function handler(req, res) {
           email,
           address,
           price,
-          ticketBuffer.toString("base64"),
-          invoiceBuffer.toString("base64"),
+          ticketBuffer,
+          invoiceBuffer,
           "PAID",
           type,
         ]
       );
 
-      // ✅ Envoi du mail via Resend
+      // ✅ Envoi du mail avec pièces jointes
       await resend.emails.send({
         from: "The Last <evenement@gvapaintball.com>",
         to: email,
@@ -119,7 +127,7 @@ export default async function handler(req, res) {
           <p>Salut ${firstName},</p>
           <p>Merci pour ton achat 🎉 Voici ton billet et ta facture pour <strong>THE LAST</strong>.</p>
           <p>Date : 18 octobre 2025 — dès 19h @ GVA Paintball</p>
-          <p>Présente ton billet à l’entrée pour accéder à l’événement.</p>
+          <p>Présente ton billet à l’entrée pour accéder à la soirée.</p>
           <p>À très vite 🔥</p>
         `,
         attachments: [
