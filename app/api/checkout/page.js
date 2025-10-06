@@ -1,62 +1,79 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
+
+export const metadata = {
+  title: "Paiement sécurisé - The Last",
+  description:
+    "Paiement sécurisé pour The Last, samedi 18 octobre 2025 dès 19h à Genève.",
+};
 
 export default function CheckoutPage() {
-  const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
-    address: "",
-    email: "",
-  });
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const API_URL = "https://evenement.gvapaintball.com/api/checkout-session";
+  useEffect(() => {
+    const API_URL = "https://evenement.gvapaintball.com/api/checkout-session";
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.id]: e.target.value });
-  };
+    const form = document.getElementById("checkoutForm");
+    const msgBox = document.getElementById("message");
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage("");
+    if (!form) return;
 
-    const orderData = {
-      ...form,
-      type: new URLSearchParams(window.location.search).get("type") || "INDIVIDUEL",
-    };
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      msgBox.classList.add("hidden");
+      msgBox.textContent = "";
 
-    try {
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderData),
-      });
+      const params = new URLSearchParams(window.location.search);
+      const orderData = {
+        firstName: document.getElementById("firstName").value.trim(),
+        lastName: document.getElementById("lastName").value.trim(),
+        address: document.getElementById("address").value.trim(),
+        email: document.getElementById("email").value.trim(),
+        type: params.get("type") || "INDIVIDUEL",
+      };
 
-      if (!res.ok) {
-        setMessage(`Erreur du serveur (${res.status})`);
-        setLoading(false);
-        return;
+      console.log("🧾 Données envoyées :", orderData);
+
+      try {
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(orderData),
+        });
+
+        console.log("📡 Statut HTTP :", response.status);
+
+        if (!response.ok) {
+          const text = await response.text();
+          console.error("⚠️ Erreur du serveur :", text);
+          msgBox.textContent = `Erreur du serveur (${response.status})`;
+          msgBox.classList.remove("hidden");
+          msgBox.classList.add("text-red-600");
+          return;
+        }
+
+        const session = await response.json();
+        console.log("✅ Réponse Stripe :", session);
+
+        if (session && session.url) {
+          console.log("➡️ Redirection vers Stripe :", session.url);
+          window.location.href = session.url;
+        } else {
+          msgBox.textContent = "Erreur : l’URL Stripe est introuvable.";
+          msgBox.classList.remove("hidden");
+          msgBox.classList.add("text-red-600");
+          console.error("Réponse inattendue :", session);
+        }
+      } catch (err) {
+        console.error("❌ Erreur de communication avec le serveur :", err);
+        msgBox.textContent = "Erreur de communication avec le serveur.";
+        msgBox.classList.remove("hidden");
+        msgBox.classList.add("text-red-600");
       }
-
-      const session = await res.json();
-
-      if (session && session.url) {
-        window.location.href = session.url; // 🔥 redirection Stripe
-      } else {
-        setMessage("Erreur : URL Stripe introuvable.");
-      }
-    } catch (err) {
-      setMessage("Erreur de communication avec le serveur.");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    });
+  }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 text-gray-900">
+    <main className="bg-gray-50 text-gray-900 flex flex-col min-h-screen">
       {/* HEADER */}
       <header className="bg-white shadow p-4 flex justify-between items-center">
         <a href="/" className="flex items-center gap-3">
@@ -70,7 +87,7 @@ export default function CheckoutPage() {
       </header>
 
       {/* MAIN */}
-      <main className="flex-1 flex flex-col items-center justify-center p-8">
+      <section className="flex flex-col items-center justify-center flex-1 p-8">
         <div className="bg-white shadow-xl rounded-xl p-8 max-w-md w-full">
           <h1 className="text-2xl font-bold text-green-600 text-center mb-4">
             Paiement sécurisé
@@ -79,57 +96,47 @@ export default function CheckoutPage() {
             💳 Paiement sécurisé par carte, Apple Pay, Google Pay et Twint
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {["firstName", "lastName", "address", "email"].map((id) => (
-              <input
-                key={id}
-                id={id}
-                type={id === "email" ? "email" : "text"}
-                placeholder={
-                  id === "firstName"
-                    ? "Prénom"
-                    : id === "lastName"
-                    ? "Nom"
-                    : id === "address"
-                    ? "Adresse complète"
-                    : "Email"
-                }
-                value={form[id]}
-                onChange={handleChange}
-                required
-                className="w-full border border-gray-300 rounded-md p-2"
-              />
-            ))}
+          <form id="checkoutForm" className="space-y-4">
+            <input
+              type="text"
+              id="firstName"
+              placeholder="Prénom"
+              required
+              className="w-full border border-gray-300 rounded-md p-2"
+            />
+            <input
+              type="text"
+              id="lastName"
+              placeholder="Nom"
+              required
+              className="w-full border border-gray-300 rounded-md p-2"
+            />
+            <input
+              type="text"
+              id="address"
+              placeholder="Adresse complète"
+              required
+              className="w-full border border-gray-300 rounded-md p-2"
+            />
+            <input
+              type="email"
+              id="email"
+              placeholder="Email"
+              required
+              className="w-full border border-gray-300 rounded-md p-2"
+            />
 
             <button
               type="submit"
-              disabled={loading}
-              className={`w-full ${
-                loading ? "bg-green-400" : "bg-green-600 hover:bg-green-700"
-              } text-white font-bold py-3 rounded-lg transition-all duration-200`}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-all duration-200"
             >
-              {loading ? "Traitement..." : "Confirmer la commande"}
+              Confirmer la commande
             </button>
           </form>
 
-          {message && (
-            <div
-              className={`mt-4 text-center text-sm ${
-                message.includes("Erreur")
-                  ? "text-red-600"
-                  : "text-green-600"
-              }`}
-            >
-              {message}
-            </div>
-          )}
+          <div id="message" className="hidden mt-4 text-center text-sm"></div>
         </div>
-      </main>
-
-      {/* FOOTER */}
-      <footer className="bg-gray-100 p-6 text-center text-sm text-gray-500">
-        © 2025 The Last — Tous droits réservés
-      </footer>
-    </div>
+      </section>
+    </main>
   );
 }
