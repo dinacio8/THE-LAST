@@ -141,34 +141,6 @@ export default function HomePageClient() {
           <li>05h00 — After jusqu’au matin</li>
         </ul>
       </section>
-
-      {/* FOOTER */}
-      <footer className="bg-gray-100 p-6 text-center text-sm text-gray-500">
-        <div className="flex justify-center gap-6 mb-4">
-          <a
-            href="https://www.instagram.com/gvapaintball?igsh=MTZtcnlna3hlMXlhYg=="
-            target="_blank"
-            className="text-pink-500 hover:text-pink-600 text-2xl"
-          >
-            <i className="fab fa-instagram"></i>
-          </a>
-          <a
-            href="https://www.facebook.com"
-            target="_blank"
-            className="text-blue-600 hover:text-blue-700 text-2xl"
-          >
-            <i className="fab fa-facebook"></i>
-          </a>
-          <a
-            href="https://www.tiktok.com"
-            target="_blank"
-            className="text-black hover:text-gray-700 text-2xl"
-          >
-            <i className="fab fa-tiktok"></i>
-          </a>
-        </div>
-        © 2025 GVA Paintball — Tous droits réservés
-      </footer>
     </main>
   );
 }
