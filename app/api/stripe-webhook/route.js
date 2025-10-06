@@ -40,7 +40,14 @@ export async function POST(req) {
 
       // 🧾 Création du billet PDF
       const pdfBuffer = await new Promise((resolve, reject) => {
-        const doc = new PDFDocument({ size: "A4", margin: 50 });
+  const doc = new PDFDocument({
+  size: "A4",
+  margin: 50,
+  font: null, // ⚠️ empêche le chargement automatique de Helvetica
+});
+doc._font = null; // désactive totalement Helvetica
+doc.font("Courier"); // police intégrée sûre
+
         const chunks = [];
         doc.on("data", (chunk) => chunks.push(chunk));
         doc.on("end", () => resolve(Buffer.concat(chunks)));
