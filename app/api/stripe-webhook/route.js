@@ -1,6 +1,5 @@
 import Stripe from "stripe";
 import { Resend } from "resend";
-import { buffer } from "micro";
 import pkg from "pg";
 import { generateTicket, generateInvoice } from "../../../utils/pdfGenerator.js";
 
@@ -9,11 +8,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
-// ✅ Nouvelle convention Next 14
+// ✅ Configuration Next.js 14
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-// Incrémentation du compteur
+// Génère un compteur incrémental pour ticket / facture
 async function getNextCounter(name) {
   const client = await pool.connect();
   try {
@@ -35,12 +34,12 @@ async function getNextCounter(name) {
   }
 }
 
-// 🧾 Webhook Stripe
+// ✅ Webhook Stripe
 export async function POST(req) {
   let event;
   try {
     const sig = req.headers.get("stripe-signature");
-    const rawBody = Buffer.from(await req.arrayBuffer()); // ✅ corps brut compatible Next 14
+    const rawBody = Buffer.from(await req.arrayBuffer()); // ✅ corps brut Next 14
     event = stripe.webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     console.error("❌ Erreur Webhook Stripe:", err.message);
@@ -62,6 +61,7 @@ export async function POST(req) {
       const buyer = { firstName, lastName, email, address };
       const price = 5.0;
 
+      console.log(`🎟 Génération PDF pour ${email}...`);
       const ticketPDF = await generateTicket(ticketId, buyer, "INDIVIDUEL");
       const invoicePDF = await generateInvoice(invoiceId, buyer, "INDIVIDUEL", price);
 
@@ -82,6 +82,8 @@ export async function POST(req) {
           invoicePDF,
         ]
       );
+
+      console.log("✅ Données enregistrées dans la base.");
 
       await resend.emails.send({
         from: "The Last <evenement@gvapaintball.com>",
