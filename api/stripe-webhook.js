@@ -2,16 +2,12 @@ import Stripe from "stripe";
 import { Resend } from "resend";
 import { buffer } from "micro";
 import pkg from "pg";
-import PDFDocument from "pdfkit";
+import { generateTicket, generateInvoice } from "../utils/pdfGenerator.js";
 
 const { Pool } = pkg;
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 export const config = {
   api: {
@@ -19,42 +15,25 @@ export const config = {
   },
 };
 
-// ✅ Génère un PDF en mémoire et retourne un Buffer
-async function createPDF(type, buyer, price, id) {
-  return new Promise((resolve, reject) => {
-    try {
-      const chunks = [];
-      const doc = new PDFDocument({ size: "A4", margin: 40 });
-
-      doc.on("data", (chunk) => chunks.push(chunk));
-      doc.on("end", () => resolve(Buffer.concat(chunks)));
-
-      doc.fontSize(22).fillColor("#16a34a")
-        .text(type === "ticket" ? "🎟 Billet THE LAST" : "🧾 Facture THE LAST");
-      doc.moveDown();
-      doc.fillColor("black").fontSize(14);
-      doc.text(`Nom : ${buyer.firstName} ${buyer.lastName}`);
-      doc.text(`Email : ${buyer.email}`);
-      doc.text(`Adresse : ${buyer.address}`);
-      doc.moveDown();
-      doc.text(`Identifiant : ${id}`);
-      doc.moveDown();
-
-      if (type === "ticket") {
-        doc.text("Entrée valable pour l’événement THE LAST", { underline: true });
-        doc.text("Date : 18 octobre 2025 - 19h00");
-        doc.text("Lieu : GVA Paintball, Chemin des Coquelicots 29, 1214 Vernier");
-      } else {
-        doc.text("Facture pour achat de billet THE LAST", { underline: true });
-        doc.text(`Montant total : ${price.toFixed(2)} CHF (TTC)`);
-        doc.text(`Mode de paiement : Stripe`);
-      }
-
-      doc.end();
-    } catch (err) {
-      reject(err);
-    }
-  });
+// Génère un numéro incrémenté (pour ticket et facture)
+async function getNextCounter(name) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      "INSERT INTO counters (name, value) VALUES ($1, 1) ON CONFLICT (name) DO UPDATE SET value = counters.value + 1",
+      [name]
+    );
+    const { rows } = await client.query("SELECT value FROM counters WHERE name = $1", [name]);
+    await client.query("COMMIT");
+    return rows[0].value;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Erreur incrément compteur:", err);
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 export default async function handler(req, res) {
@@ -75,33 +54,31 @@ export default async function handler(req, res) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-    const { type, firstName, lastName, address } = session.metadata;
     const email = session.customer_email;
-    const price = type === "VIP" ? 15 : 5;
+    const { firstName, lastName, address, type } = session.metadata;
 
     try {
-      // 🔢 Génération d’un numéro incrémental depuis counters
-      const { rows } = await pool.query(
-        "UPDATE counters SET value = value + 1 WHERE name = 'order' RETURNING value"
-      );
-      const nextId = rows[0]?.value || 1;
+      // 🎟 Numéros incrémentés
+      const ticketNum = await getNextCounter("ticket");
+      const invoiceNum = await getNextCounter("invoice");
 
-      const ticketId = `TICKET-2025-10-${String(nextId).padStart(4, "0")}`;
-      const invoiceId = `FAC-2025-10-${String(nextId).padStart(4, "0")}`;
+      const ticketId = `TICKET-2025-10-${String(ticketNum).padStart(4, "0")}`;
+      const invoiceId = `FAC-2025-10-${String(invoiceNum).padStart(4, "0")}`;
+
       const buyer = { firstName, lastName, email, address };
+      const price = 5.0; // unique prix (5 CHF, pas de VIP)
 
-      console.log(`🎟 Génération du billet + facture pour ${email} (#${nextId})`);
+      console.log(`🎟 Génération ticket & facture pour ${email}...`);
 
-      // ✅ Génération PDF en mémoire
-      const ticketBuffer = await createPDF("ticket", buyer, price, ticketId);
-      const invoiceBuffer = await createPDF("invoice", buyer, price, invoiceId);
+      // Génération PDF en mémoire
+      const ticketPDF = await generateTicket(ticketId, buyer, "INDIVIDUEL");
+      const invoicePDF = await generateInvoice(invoiceId, buyer, "INDIVIDUEL", price);
 
-      // ✅ Enregistrement dans la base
+      // Insertion base de données
       await pool.query(
-        `INSERT INTO orders (
-          stripe_session_id, ticket_id, invoice_id, first_name, last_name, email, address, price,
-          ticket_pdf, invoice_pdf, status, type
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        `INSERT INTO orders 
+        (stripe_session_id, ticket_id, invoice_id, first_name, last_name, email, address, price, ticket_pdf, invoice_pdf, status, type)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'PAID','INDIVIDUEL')`,
         [
           session.id,
           ticketId,
@@ -111,34 +88,42 @@ export default async function handler(req, res) {
           email,
           address,
           price,
-          ticketBuffer,
-          invoiceBuffer,
-          "PAID",
-          type,
+          ticketPDF,
+          invoicePDF,
         ]
       );
 
-      // ✅ Envoi du mail avec pièces jointes
+      console.log("✅ Données enregistrées dans la base");
+
+      // Envoi du mail
       await resend.emails.send({
         from: "The Last <evenement@gvapaintball.com>",
         to: email,
         subject: "🎫 Ton billet pour THE LAST",
         html: `
           <p>Salut ${firstName},</p>
-          <p>Merci pour ton achat 🎉 Voici ton billet et ta facture pour <strong>THE LAST</strong>.</p>
-          <p>Date : 18 octobre 2025 — dès 19h @ GVA Paintball</p>
+          <p>Merci pour ton achat 🎉</p>
+          <p>Voici ton billet et ta facture pour <strong>THE LAST</strong>.</p>
+          <p><strong>Date :</strong> 18 octobre 2025 — dès 19h</p>
+          <p><strong>Lieu :</strong> GVA Paintball, Chemin des Coquelicots 29, 1214 Vernier</p>
           <p>Présente ton billet à l’entrée pour accéder à la soirée.</p>
           <p>À très vite 🔥</p>
         `,
         attachments: [
-          { filename: `${ticketId}.pdf`, content: ticketBuffer.toString("base64") },
-          { filename: `${invoiceId}.pdf`, content: invoiceBuffer.toString("base64") },
+          {
+            filename: `${ticketId}.pdf`,
+            content: ticketPDF.toString("base64"),
+          },
+          {
+            filename: `${invoiceId}.pdf`,
+            content: invoicePDF.toString("base64"),
+          },
         ],
       });
 
-      console.log(`✅ Mail envoyé à ${email}`);
-    } catch (err) {
-      console.error("❌ Erreur traitement commande:", err);
+      console.log(`📩 Mail envoyé à ${email}`);
+    } catch (error) {
+      console.error("❌ Erreur traitement commande:", error);
     }
   }
 
