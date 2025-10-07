@@ -35,18 +35,6 @@ export async function POST(req) {
         ? process.env.BASE_URL
         : `https://${process.env.BASE_URL || "evenement.gvapaintball.com"}`;
 
-// Vérifie le nombre total de billets déjà vendus
-const { rows } = await pool.query("SELECT COUNT(*) AS total FROM orders");
-const total = parseInt(rows[0].total, 10);
-
-if (total >= 3) {
-  console.warn("⚠️ Quota de 320 billets atteint, refus de commande");
-  return new Response(
-    JSON.stringify({ error: "Le nombre maximum de billets (320) a été atteint." }),
-    { status: 403 }
-  );
-}
-
     // ✅ Création de la session Stripe Checkout
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card", "twint"], // active Twint + cartes
