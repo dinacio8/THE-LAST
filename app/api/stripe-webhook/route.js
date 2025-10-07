@@ -95,7 +95,7 @@ async function generateTicketPDF({ firstName, lastName, type, sessionId }) {
     width: width - 20,
     height: height - 20,
     borderWidth: 2,
-    color: rgb(255, 255, 255),
+    color: rgb(1, 1, 1),
   });
 
   // --- Logo centré en haut ---

@@ -26,26 +26,23 @@ export async function POST(req) {
 
     const price = type === "INDIVIDUEL" ? 5 : 5;
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      payment_method_types: ["card"],
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/cancel`,
-      customer_email: email,
-      line_items: [
-        {
-          price_data: {
-            currency: "chf",
-            product_data: {
-              name: `Billet ${type} - The Last @ GVA Paintball`,
-            },
-            unit_amount: price * 100,
-          },
-          quantity: 1,
-        },
-      ],
-      metadata: { firstName, lastName, address, type },
-    });
+const session = await stripe.checkout.sessions.create({
+  payment_method_types: ['card', 'twint'], // ✅ ajoute TWINT ici
+  mode: 'payment',
+  success_url: `${process.env.BASE_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+  cancel_url: `${process.env.BASE_URL}/checkout?canceled=true`,
+  line_items: [
+    {
+      price_data: {
+        currency: 'chf',
+        product_data: { name: `${type} - The Last ` },
+        unit_amount: 500, // 5 CHF → en centimes
+      },
+      quantity: 1,
+    },
+  ],
+  customer_email: email,
+});
 
     console.log("✅ Session créée :", session.id);
 
