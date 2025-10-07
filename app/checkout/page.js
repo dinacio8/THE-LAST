@@ -152,7 +152,7 @@ export default function CheckoutPage() {
             Paiement sécurisé
           </h1>
           <p className="text-center text-gray-500 mb-6">
-            💳 Paiement sécurisé par carte, Apple Pay, Google Pay et Twint
+            💳 Paiement sécurisé par carte, Apple Pay et Twint
           </p>
 
           <form id="checkoutForm" className="space-y-4">
