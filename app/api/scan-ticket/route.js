@@ -7,21 +7,29 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
-  const id = searchParams.get("id"); // id du billet / order_number
+  // 🟢 on accepte order_number, order, ou id (fallback)
+  const orderNumber =
+    searchParams.get("order_number") ||
+    searchParams.get("order") ||
+    searchParams.get("id");
 
-  if (!id) {
-    return new Response(JSON.stringify({ error: "ID manquant" }), { status: 400 });
+  if (!orderNumber) {
+    return new Response(JSON.stringify({ error: "Numéro de billet manquant" }), {
+      status: 400,
+    });
   }
 
   const client = await pool.connect();
 
   try {
-    // Vérifie si le billet existe
+    // 🔍 Vérifie si le billet existe (en cherchant via order_number)
     const { rows } = await client.query(
-      `SELECT id, first_name, last_name, type, used, created_at 
+      `SELECT id, order_number, first_name, last_name, type, used, created_at 
        FROM orders 
-       WHERE id = $1 LIMIT 1`,
-      [id]
+       WHERE order_number = $1 
+       OR id = $1::int 
+       LIMIT 1`,
+      [orderNumber]
     );
 
     if (rows.length === 0) {
@@ -33,32 +41,40 @@ export async function GET(req) {
 
     const order = rows[0];
 
-    // Si déjà utilisé
+    // ⚠️ Si le billet a déjà été utilisé
     if (order.used === true) {
       return new Response(
         JSON.stringify({
           valid: false,
-          message: "⚠️ Billet déjà utilisé",
+          message: `⚠️ Billet déjà utilisé (${order.first_name} ${order.last_name})`,
           order,
         }),
         { status: 200 }
       );
     }
 
-    // Sinon, on le marque comme utilisé
-    await client.query(`UPDATE orders SET used = true, used_at = NOW() WHERE id = $1`, [id]);
+    // ✅ Si le billet est valide : on le marque comme utilisé
+    await client.query(
+      `UPDATE orders 
+       SET used = true, used_at = NOW() 
+       WHERE order_number = $1`,
+      [order.order_number]
+    );
 
     return new Response(
       JSON.stringify({
         valid: true,
-        message: "✅ Billet valide ! Accès autorisé",
+        message: `✅ Billet valide : ${order.first_name} ${order.last_name}`,
         order,
       }),
       { status: 200 }
     );
   } catch (err) {
     console.error("Erreur scan billet:", err);
-    return new Response(JSON.stringify({ error: "Erreur serveur" }), { status: 500 });
+    return new Response(
+      JSON.stringify({ error: "Erreur serveur" }),
+      { status: 500 }
+    );
   } finally {
     client.release();
   }

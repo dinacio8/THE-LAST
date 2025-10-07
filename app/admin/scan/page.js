@@ -3,17 +3,16 @@
 import { useEffect, useState, useRef } from "react";
 import QrScanner from "qr-scanner";
 
-const ADMIN_PASSWORD = "GvaPaintball2025."; // 🧠 même mot de passe que la page admin
+const ADMIN_PASSWORD = "GvaPaintball2025.";
 
 export default function ScanPage() {
   const [isLogged, setIsLogged] = useState(false);
   const [password, setPassword] = useState("");
   const [scanner, setScanner] = useState(null);
-  const [overlay, setOverlay] = useState(null); // ✅ pour l’écran de feedback
+  const [overlay, setOverlay] = useState(null);
   const lastScanRef = useRef({ code: null, time: 0 });
   const cooldownRef = useRef(false);
 
-  // 🔓 Connexion
   const handleLogin = () => {
     if (password === ADMIN_PASSWORD) {
       setIsLogged(true);
@@ -23,14 +22,12 @@ export default function ScanPage() {
     }
   };
 
-  // 🚪 Déconnexion
   const handleLogout = () => {
     localStorage.removeItem("isScannerAdmin");
     setIsLogged(false);
     if (scanner) scanner.stop();
   };
 
-  // 📸 Démarre le scanner
   useEffect(() => {
     if (!isLogged) return;
 
@@ -41,8 +38,6 @@ export default function ScanPage() {
       videoElem,
       async (result) => {
         const now = Date.now();
-
-        // ⏱️ Ignore le même code dans les 3 dernières secondes
         if (
           cooldownRef.current ||
           (result.data === lastScanRef.current.code &&
@@ -56,7 +51,6 @@ export default function ScanPage() {
 
         await handleScan(result.data);
 
-        // ⏳ Pause le scan pendant 2,5 secondes avant reprise
         newScanner.pause();
         setTimeout(() => {
           cooldownRef.current = false;
@@ -78,14 +72,20 @@ export default function ScanPage() {
   const handleScan = async (data) => {
     try {
       const url = new URL(data);
-      const id = url.searchParams.get("id");
 
-      if (!id) {
+      // 🟢 On récupère maintenant "order" au lieu de "id"
+      const orderNumber =
+        url.searchParams.get("order") ||
+        url.searchParams.get("order_number") ||
+        url.searchParams.get("id"); // fallback si ancien QR
+
+      if (!orderNumber) {
         showOverlay("QR code invalide ❌", "red");
         return;
       }
 
-      const res = await fetch(`/api/scan-ticket?id=${id}`);
+      // 👉 Appel API avec le numéro de commande
+      const res = await fetch(`/api/scan-ticket?order_number=${orderNumber}`);
       const json = await res.json();
 
       if (!res.ok) throw new Error(json.error || "Erreur serveur");
@@ -104,15 +104,13 @@ export default function ScanPage() {
     }
   };
 
-  // 🟢 Affiche la bannière plein écran
   const showOverlay = (message, color) => {
     setOverlay({ message, color });
-    setTimeout(() => setOverlay(null), 2000); // 🕒 disparaît après 2 sec
+    setTimeout(() => setOverlay(null), 2000);
   };
 
   return (
     <main className="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-6 relative">
-      {/* 🔒 Connexion */}
       {!isLogged ? (
         <div className="bg-white text-gray-900 p-6 rounded-lg shadow-lg w-full max-w-sm text-center">
           <h1 className="text-2xl font-bold text-green-600 mb-4">
@@ -135,10 +133,11 @@ export default function ScanPage() {
         </div>
       ) : (
         <>
-          {/* 🎫 Scanner */}
           <div className="w-full max-w-lg text-center">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-green-500">🎟️ Scanner de billets</h2>
+              <h2 className="text-2xl font-bold text-green-500">
+                🎟️ Scanner de billets
+              </h2>
               <button
                 onClick={handleLogout}
                 className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-md"
@@ -153,7 +152,6 @@ export default function ScanPage() {
             ></video>
           </div>
 
-          {/* 🟩🟥 Bannière plein écran */}
           {overlay && (
             <div
               className={`absolute inset-0 flex items-center justify-center text-3xl font-bold ${
