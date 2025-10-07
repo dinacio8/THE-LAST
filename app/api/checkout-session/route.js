@@ -55,7 +55,7 @@ if (total >= 320) {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card", "twint"], // active Twint + cartes
       mode: "payment",
-success_url: `${process.env.BASE_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+success_url: `${process.env.BASE_URL}/success?session_id={CHECKOUT_SESSION_ID}&pending=true`,
       cancel_url: `${baseUrl}/checkout?canceled=true`,
       line_items: [
         {
