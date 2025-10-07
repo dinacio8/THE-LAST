@@ -9,7 +9,7 @@ export default function SuccessPage() {
   useEffect(() => {
     async function loadStatus() {
       const params = new URLSearchParams(window.location.search);
-      const orderId = params.get("id"); // 🟢 on utilise maintenant "id" au lieu de "session_id"
+      const id = params.get("id"); // 🟢 on utilise maintenant "id" au lieu de "session_id"
 
       if (!orderId) {
         setStatusMsg("❌ Impossible de retrouver les informations de commande.");
@@ -18,7 +18,7 @@ export default function SuccessPage() {
       }
 
       try {
-        const res = await fetch(`/api/order-status?id=${orderId}`);
+const res = await fetch(`/api/order-status?id=${id}`);
         const data = await res.json();
 
         if (!res.ok) {

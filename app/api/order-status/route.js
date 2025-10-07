@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id"); // 🟢 On utilise maintenant "id"
+    const id = searchParams.get("id"); // correspond à order_number
 
     if (!id) {
       return new Response(JSON.stringify({ error: "ID de commande manquant" }), {
@@ -18,9 +18,10 @@ export async function GET(req) {
 
     const client = await pool.connect();
     const { rows } = await client.query(
-      `SELECT id, first_name, last_name, email, type, price, created_at 
-       FROM orders 
-       WHERE id = $1 LIMIT 1`,
+      `SELECT order_number, first_name, last_name, email, type, price, created_at
+       FROM orders
+       WHERE order_number = $1
+       LIMIT 1`,
       [id]
     );
     client.release();
@@ -34,13 +35,14 @@ export async function GET(req) {
     const order = rows[0];
 
     const response = {
-      first_name: order.first_name,
-      last_name: order.last_name,
+      order_number: order.order_number,
+      firstName: order.first_name,
+      lastName: order.last_name,
       email: order.email,
       type: order.type,
       price: order.price,
-      created_at: order.created_at,
-      status: "sent", // Tu pourras remplacer ça par un champ réel plus tard
+      createdAt: order.created_at,
+      status: "sent", // À remplacer plus tard par un champ réel (ex: 'used', 'valid', etc.)
     };
 
     return new Response(JSON.stringify(response), {

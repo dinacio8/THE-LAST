@@ -178,12 +178,12 @@ export async function POST(req) {
       console.log("✅ Paiement confirmé :", sessionId);
 
       const client = await pool.connect();
-      const { rows } = await client.query(
-        `INSERT INTO orders (session_id, first_name, last_name, email, type, price, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, NOW())
-         RETURNING order_number`,
-        [sessionId, firstName, lastName, email, type, price]
-      );
+const { rows } = await client.query(
+  `INSERT INTO orders (session_id, first_name, last_name, email, type, price, created_at)
+   VALUES ($1, $2, $3, $4, $5, $6, NOW())
+   RETURNING order_number`,
+  [sessionId, firstName, lastName, email, type, price]
+);
       const orderNumber = rows[0].order_number;
       client.release();
 
@@ -212,3 +212,6 @@ export async function POST(req) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+
+
