@@ -46,7 +46,7 @@ const total = parseInt(rows[0].total, 10);
 if (total >= 3) {
   console.warn("⚠️ Quota de 320 billets atteint, refus de commande");
   return new Response(
-    JSON.stringify({ error: "Le nombre maximum de billets (320) a été atteint." }),
+    JSON.stringify({ error: "🎫 Événement complet C’était le dernier... The Last, vraiment 😅" }),
     { status: 403 }
   );
 }
