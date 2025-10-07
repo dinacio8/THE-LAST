@@ -203,7 +203,7 @@ export async function POST(req) {
       const invoicePdf = await generateInvoicePDF({ firstName, lastName, email, type, price, sessionId });
 
       await resend.emails.send({
-        from: "GVA Paintball <noreply@evenement.gvapaintball.com>",
+        from: "The last <evenement@gvapaintball.com>",
         to: email,
         subject: "Ton billet et ta facture – The Last @ GVA Paintball",
         html: emailTemplate({ firstName, lastName, type, price, email, sessionId }),
