@@ -1,17 +1,25 @@
-import { Pool } from "pg";
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+import { NextResponse } from "next/server";
+import pkg from "pg";
+const { Pool } = pkg;
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+// Connexion à ta base PostgreSQL
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
 
 export async function GET() {
   try {
-    const result = await pool.query(`
-      SELECT
+    const client = await pool.connect();
+
+    // 🔹 On récupère toutes les commandes, triées par date
+    const result = await client.query(`
+      SELECT 
         id,
+        session_id,
         first_name,
         last_name,
         email,
+        type,
         price,
         status,
         created_at
@@ -19,11 +27,15 @@ export async function GET() {
       ORDER BY created_at DESC
     `);
 
-    return new Response(JSON.stringify(result.rows), {
-      headers: { "Content-Type": "application/json" },
-    });
+    client.release();
+
+    // Renvoie JSON des commandes
+    return NextResponse.json(result.rows, { status: 200 });
   } catch (error) {
-    console.error("❌ Erreur récupération commandes:", error);
-    return new Response(JSON.stringify({ error: "Erreur récupération commandes" }), { status: 500 });
+    console.error("❌ Erreur dans /api/admin-orders :", error);
+    return NextResponse.json(
+      { error: "Erreur lors de la récupération des commandes" },
+      { status: 500 }
+    );
   }
 }
