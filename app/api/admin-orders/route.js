@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import pkg from "pg";
 const { Pool } = pkg;
 
+// ⚙️ Empêche Next.js de mettre en cache cette route
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }, // utile sur Vercel / Supabase
@@ -33,14 +38,19 @@ export async function GET() {
 
     const result = await client.query(query);
     console.log(`📦 ${result.rowCount} commandes récupérées`);
-
     client.release();
 
     if (result.rowCount === 0) {
       console.warn("⚠️ Aucun résultat renvoyé par la DB");
     }
 
-    return NextResponse.json(result.rows, { status: 200 });
+    // ✅ Retourne directement les données fraîches à chaque appel
+    return NextResponse.json(result.rows, {
+      status: 200,
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      },
+    });
   } catch (error) {
     console.error("❌ Erreur dans /api/admin-orders :", error);
     return NextResponse.json(

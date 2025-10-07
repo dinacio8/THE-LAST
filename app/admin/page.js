@@ -49,19 +49,22 @@ export default function AdminPage() {
     setOrders([]);
   };
 
-  // 📦 Chargement des commandes
-  const loadOrders = async (silent = false) => {
-    try {
-      if (!silent) console.log("🔄 Chargement des commandes...");
-      const res = await fetch("/api/admin-orders", { cache: "no-store" });
-      if (!res.ok) throw new Error("Erreur API");
-      const data = await res.json();
-      setOrders(data);
-      setLastUpdate(new Date());
-    } catch (err) {
-      console.error("Erreur lors du chargement des commandes:", err);
-    }
-  };
+// 📦 Chargement des commandes
+const loadOrders = async (silent = false) => {
+  try {
+    if (!silent) console.log("🔄 Chargement des commandes...");
+    const res = await fetch("/api/admin-orders", {
+      cache: "no-store", // 🚫 Aucune mise en cache côté Next.js
+      next: { revalidate: 0 }, // 🧹 Désactive la revalidation ISR
+    });
+    if (!res.ok) throw new Error("Erreur API");
+    const data = await res.json();
+    setOrders(data);
+    setLastUpdate(new Date());
+  } catch (err) {
+    console.error("Erreur lors du chargement des commandes:", err);
+  }
+};
 
   // 📊 Export Excel
   const exportExcel = () => {
