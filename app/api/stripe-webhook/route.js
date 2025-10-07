@@ -84,7 +84,7 @@ async function generateTicketPDF({ firstName, lastName, type, sessionId }) {
 
   // Texte principal
   page.drawText("THE LAST @ GVA PAINTBALL", { x: 130, y: height - 60, size: 18, font, color: rgb(0.13, 0.6, 0.27) });
-  page.drawText("🎵 Samedi 18 octobre 2025 — Dès 19h", { x: 130, y: height - 80, size: 10, font });
+  page.drawText("Samedi 18 octobre 2025 — Dès 19h", { x: 130, y: height - 80, size: 10, font });
   page.drawText(`Nom: ${firstName} ${lastName}`, { x: 30, y: 130, size: 12, font });
   page.drawText(`Type: ${type}`, { x: 30, y: 110, size: 12, font });
   page.drawText("Lieu: GVA Paintball, Meyrin (GE)", { x: 30, y: 90, size: 12, font });
@@ -213,12 +213,12 @@ export async function POST(req) {
         ],
       });
 
-      console.log(`📧 Mail envoyé à ${email}`);
+      console.log(`Mail envoyé à ${email}`);
     }
 
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (err) {
-    console.error("🔥 Erreur globale du webhook :", err);
+    console.error("Erreur globale du webhook :", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
