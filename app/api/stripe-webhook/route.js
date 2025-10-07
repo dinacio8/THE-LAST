@@ -31,10 +31,10 @@ async function generateInvoicePDF({ firstName, lastName, email, type, price, ses
   page.drawText("FACTURE", { x: 420, y: height - 70, size: 22, font, color: rgb(0.13, 0.6, 0.27) });
 
   // Infos entreprise
-  page.drawText("GVA Paintball", { x: 50, y: height - 140, size: 14, font });
-  page.drawText("Chemin de la Verseuse 12", { x: 50, y: height - 155, size: 12, font });
-  page.drawText("1217 Meyrin, Genève", { x: 50, y: height - 170, size: 12, font });
-  page.drawText("contact@gvapaintball.com", { x: 50, y: height - 185, size: 12, font });
+  page.drawText("No paint No game SARL", { x: 50, y: height - 140, size: 14, font });
+  page.drawText("", { x: 50, y: height - 155, size: 12, font });
+  page.drawText("1223 Cologny", { x: 50, y: height - 170, size: 12, font });
+  page.drawText("admin@gvapaintball.com", { x: 50, y: height - 185, size: 12, font });
 
   // Client
   page.drawText("Facturé à :", { x: 50, y: height - 230, size: 12, font, color: rgb(0, 0, 0.5) });
