@@ -20,7 +20,7 @@ export async function GET(req) {
     const { rows } = await client.query(
       `SELECT id, first_name, last_name, email, type, price, created_at 
        FROM orders 
-       WHERE id = $1 LIMIT 1`,
+       WHERE order_number = $1 LIMIT 1`,
       [id]
     );
     client.release();
