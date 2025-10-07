@@ -10,42 +10,15 @@ export default function SuccessPage() {
     async function loadStatus() {
       const params = new URLSearchParams(window.location.search);
       const id = params.get("id");
-      const sessionId = params.get("session_id");
 
-      // ✅ Si on a déjà un orderNumber (id)
-      if (id) {
-        await fetchOrderById(id);
+      if (!id) {
+        setStatusMsg("❌ Impossible de retrouver les informations de commande.");
+        setError(true);
         return;
       }
 
-      // ⚠️ Sinon on tente avec session_id (Stripe)
-      if (sessionId) {
-        try {
-          const res = await fetch(`/api/get-order-by-session?id=${sessionId}`);
-          const data = await res.json();
-
-          if (res.ok && data?.order_number) {
-            // Redirection propre vers /success?id=xxx
-            window.location.href = `/success?id=${data.order_number}`;
-            return;
-          } else {
-            setStatusMsg("❌ Impossible de retrouver la commande associée.");
-            setError(true);
-          }
-        } catch (err) {
-          console.error("Erreur communication API:", err);
-          setStatusMsg("⚠️ Erreur de communication avec le serveur.");
-          setError(true);
-        }
-      } else {
-        setStatusMsg("❌ Paramètres de commande invalides.");
-        setError(true);
-      }
-    }
-
-    async function fetchOrderById(orderId) {
       try {
-        const res = await fetch(`/api/order-status?id=${orderId}`);
+        const res = await fetch(`/api/order-status?id=${id}`);
         const data = await res.json();
 
         if (!res.ok) {
@@ -85,7 +58,7 @@ export default function SuccessPage() {
         {order && (
           <div className="mt-6 bg-white shadow-lg rounded-lg p-6 max-w-md text-left">
             <p>
-              <strong>Nom :</strong> {order.firstname} {order.lastname}
+              <strong>Nom :</strong> {order.firstName} {order.lastName}
             </p>
             <p>
               <strong>Type de billet :</strong> {order.type}
