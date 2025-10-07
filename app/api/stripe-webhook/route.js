@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { Resend } from "resend";
 import pkg from "pg";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import QRCode from "qrcode";
 
 const { Pool } = pkg;
 
@@ -10,7 +11,99 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const resend = new Resend(process.env.RESEND_API_KEY);
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
-// ✅ Template HTML email (propre & compatible Gmail)
+/* -------------------------------------------------------
+ 🧾 FACTURE A4 PDF
+------------------------------------------------------- */
+async function generateInvoicePDF({ firstName, lastName, email, type, price, sessionId }) {
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([595.28, 841.89]); // A4 portrait
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const { width, height } = page.getSize();
+
+  // Logo
+  const logoUrl = "https://evenement.gvapaintball.com/terrain_GE_gvapaintball_01.png";
+  const logoBytes = await fetch(logoUrl).then((r) => r.arrayBuffer());
+  const logoImage = await pdfDoc.embedPng(logoBytes);
+  const logoDims = logoImage.scale(0.25);
+  page.drawImage(logoImage, { x: 50, y: height - 100, width: logoDims.width, height: logoDims.height });
+
+  // Titre
+  page.drawText("FACTURE", { x: 420, y: height - 70, size: 22, font, color: rgb(0.13, 0.6, 0.27) });
+
+  // Infos entreprise
+  page.drawText("GVA Paintball", { x: 50, y: height - 140, size: 14, font });
+  page.drawText("Chemin de la Verseuse 12", { x: 50, y: height - 155, size: 12, font });
+  page.drawText("1217 Meyrin, Genève", { x: 50, y: height - 170, size: 12, font });
+  page.drawText("contact@gvapaintball.com", { x: 50, y: height - 185, size: 12, font });
+
+  // Client
+  page.drawText("Facturé à :", { x: 50, y: height - 230, size: 12, font, color: rgb(0, 0, 0.5) });
+  page.drawText(`${firstName} ${lastName}`, { x: 50, y: height - 245, size: 12, font });
+  page.drawText(email, { x: 50, y: height - 260, size: 12, font });
+
+  // Ligne
+  page.drawLine({ start: { x: 50, y: height - 280 }, end: { x: 545, y: height - 280 }, thickness: 1, color: rgb(0.13, 0.6, 0.27) });
+
+  // Détails
+  page.drawText("DÉTAILS DE LA COMMANDE", { x: 50, y: height - 310, size: 14, font, color: rgb(0.13, 0.6, 0.27) });
+  page.drawText(`Commande : ${sessionId}`, { x: 50, y: height - 330, size: 12, font });
+  page.drawText(`Type de billet : ${type}`, { x: 50, y: height - 345, size: 12, font });
+  page.drawText(`Quantité : 1`, { x: 50, y: height - 360, size: 12, font });
+  page.drawText(`Prix unitaire : ${price} CHF`, { x: 50, y: height - 375, size: 12, font });
+
+  // Total
+  page.drawText("TOTAL TTC :", { x: 400, y: height - 420, size: 14, font });
+  page.drawText(`${price} CHF`, { x: 490, y: height - 420, size: 14, font, color: rgb(0.13, 0.6, 0.27) });
+
+  // Pied de page
+  page.drawText("TVA non applicable – art. 21, al. 6, LTVA", { x: 50, y: 60, size: 10, font, color: rgb(0.4, 0.4, 0.4) });
+  page.drawText("Merci pour votre commande et à bientôt chez GVA Paintball !", { x: 50, y: 40, size: 10, font });
+
+  const pdfBytes = await pdfDoc.save();
+  return Buffer.from(pdfBytes).toString("base64");
+}
+
+/* -------------------------------------------------------
+ 🎫 BILLET A6 HORIZONTAL
+------------------------------------------------------- */
+async function generateTicketPDF({ firstName, lastName, type, sessionId }) {
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([420, 297]);
+  const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const { width, height } = page.getSize();
+
+  // Fond gris clair + bordure
+  page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(0.95, 0.95, 0.95) });
+  page.drawRectangle({ x: 5, y: 5, width: width - 10, height: height - 10, borderWidth: 2, color: rgb(0.13, 0.6, 0.27) });
+
+  // Logo
+  const logoUrl = "https://evenement.gvapaintball.com/terrain_GE_gvapaintball_01.png";
+  const logoBytes = await fetch(logoUrl).then((r) => r.arrayBuffer());
+  const logo = await pdfDoc.embedPng(logoBytes);
+  page.drawImage(logo, { x: 30, y: height - 100, width: 80, height: 80 });
+
+  // Texte principal
+  page.drawText("THE LAST @ GVA PAINTBALL", { x: 130, y: height - 60, size: 18, font, color: rgb(0.13, 0.6, 0.27) });
+  page.drawText("🎵 Samedi 18 octobre 2025 — Dès 19h", { x: 130, y: height - 80, size: 10, font });
+  page.drawText(`Nom: ${firstName} ${lastName}`, { x: 30, y: 130, size: 12, font });
+  page.drawText(`Type: ${type}`, { x: 30, y: 110, size: 12, font });
+  page.drawText("Lieu: GVA Paintball, Meyrin (GE)", { x: 30, y: 90, size: 12, font });
+  page.drawText("Entrée valable pour 1 personne", { x: 30, y: 70, size: 12, font });
+
+  // QR Code
+  const qrData = await QRCode.toDataURL(`https://evenement.gvapaintball.com/success?session_id=${sessionId}`);
+  const qrImage = await pdfDoc.embedPng(qrData);
+  page.drawImage(qrImage, { x: width - 130, y: 50, width: 80, height: 80 });
+
+  page.drawText(`Billet n°: ${sessionId}`, { x: 30, y: 40, size: 10, font, color: rgb(0.4, 0.4, 0.4) });
+
+  const pdfBytes = await pdfDoc.save();
+  return Buffer.from(pdfBytes).toString("base64");
+}
+
+/* -------------------------------------------------------
+ ✉️ TEMPLATE EMAIL (le tien)
+------------------------------------------------------- */
 const emailTemplate = (data) => `
 <!doctype html>
 <html lang="fr">
@@ -77,38 +170,19 @@ const emailTemplate = (data) => `
 </html>
 `;
 
-// ✅ Génération de PDF simple (sans Helvetica)
-async function generatePdf(title, content) {
-  const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([600, 400]);
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const { height } = page.getSize();
-
-  page.drawText(title, { x: 50, y: height - 80, size: 22, font, color: rgb(0.13, 0.6, 0.27) });
-  page.drawText(content, { x: 50, y: height - 130, size: 14, font, color: rgb(0, 0, 0) });
-
-  const pdfBytes = await pdfDoc.save();
-  return Buffer.from(pdfBytes).toString("base64");
-}
-
-// ✅ Handler du webhook Stripe
+/* -------------------------------------------------------
+ 💳 WEBHOOK STRIPE
+------------------------------------------------------- */
 export async function POST(req) {
   try {
     const body = await req.text();
     const sig = req.headers.get("stripe-signature");
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-    let event;
-    try {
-      event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
-    } catch (err) {
-      console.error("❌ Erreur de signature webhook :", err.message);
-      return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
-    }
+    const event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
-      const customerEmail = session.customer_details?.email;
+      const email = session.customer_details?.email;
       const firstName = session.metadata?.firstName || "Client";
       const lastName = session.metadata?.lastName || "";
       const type = session.metadata?.type || "INDIVIDUEL";
@@ -117,32 +191,29 @@ export async function POST(req) {
 
       console.log("✅ Paiement confirmé :", sessionId);
 
-      // 🔸 Insérer dans la base PostgreSQL
       const client = await pool.connect();
       await client.query(
         `INSERT INTO orders (session_id, first_name, last_name, email, type, price, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
-        [sessionId, firstName, lastName, customerEmail, type, price]
+        [sessionId, firstName, lastName, email, type, price]
       );
       client.release();
 
-      // 🔸 Génération PDF billet & facture
-      const ticketPdf = await generatePdf("Billet d'entrée – The Last", `Nom: ${firstName} ${lastName}\nType: ${type}\nEmail: ${customerEmail}`);
-      const invoicePdf = await generatePdf("Facture – The Last", `Commande: ${sessionId}\nMontant: ${price} CHF`);
+      const ticketPdf = await generateTicketPDF({ firstName, lastName, type, sessionId });
+      const invoicePdf = await generateInvoicePDF({ firstName, lastName, email, type, price, sessionId });
 
-      // 🔸 Envoi email via Resend
       await resend.emails.send({
-        from: "The Last <evenement@gvapaintball.com>",
-        to: customerEmail,
-        subject: "Ton billet pour The Last @ GVA Paintball",
-        html: emailTemplate({ firstName, lastName, type, price, email: customerEmail, sessionId }),
+        from: "GVA Paintball <noreply@evenement.gvapaintball.com>",
+        to: email,
+        subject: "Ton billet et ta facture – The Last @ GVA Paintball",
+        html: emailTemplate({ firstName, lastName, type, price, email, sessionId }),
         attachments: [
           { filename: "billet.pdf", content: ticketPdf, encoding: "base64" },
           { filename: "facture.pdf", content: invoicePdf, encoding: "base64" },
         ],
       });
 
-      console.log(`📧 Mail billet + facture envoyé à ${customerEmail}`);
+      console.log(`📧 Mail envoyé à ${email}`);
     }
 
     return NextResponse.json({ received: true }, { status: 200 });
