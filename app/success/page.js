@@ -32,7 +32,7 @@ export default function SuccessPage() {
         document.getElementById("price").textContent = data.price;
         document.getElementById("email").textContent = data.email;
         document.getElementById("invoice").textContent = data.invoice;
-        document.getElementById("ticket").textContent = data.ticket;
+        document.getElementById("ticket").textContent = data.orderNumber;
         document.getElementById("sent").textContent =
           data.status === "sent" ? "✅ Envoyé" : "⏳ En cours d’envoi";
       } catch (err) {
