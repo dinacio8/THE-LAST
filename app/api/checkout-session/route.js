@@ -43,10 +43,10 @@ export async function POST(req) {
 const { rows } = await pool.query("SELECT COUNT(*) AS total FROM orders");
 const total = parseInt(rows[0].total, 10);
 
-if (total >= 3) {
+if (total >= 320) {
   console.warn("⚠️ Quota de 320 billets atteint, refus de commande");
   return new Response(
-    JSON.stringify({ error: "🎫 SOLD OUT 😅" }),
+    JSON.stringify({ error: "❌ SOLD OUT ❌" }),
     { status: 403 }
   );
 }
