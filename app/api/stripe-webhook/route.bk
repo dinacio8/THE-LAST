@@ -14,9 +14,9 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 /* -------------------------------------------------------
  🧾 FACTURE A4 PDF
 ------------------------------------------------------- */
-async function generateInvoicePDF({ firstName, lastName, email, type, price, sessionId }) {
+async function generateInvoicePDF({ firstName, lastName, email, type, price, orderNumber }) {
   const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([595.28, 841.89]); // A4 portrait
+  const page = pdfDoc.addPage([595.28, 841.89]);
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const { width, height } = page.getSize();
 
@@ -44,7 +44,7 @@ async function generateInvoicePDF({ firstName, lastName, email, type, price, ses
 
   // Détails
   page.drawText("DÉTAILS DE LA COMMANDE", { x: 50, y: height - 310, size: 14, font, color: rgb(0.13, 0.6, 0.27) });
-  page.drawText(`Commande : ${sessionId}`, { x: 50, y: height - 330, size: 12, font });
+  page.drawText(`Facture n° : ${orderNumber}`, { x: 50, y: height - 330, size: 12, font });
   page.drawText(`Type de billet : ${type}`, { x: 50, y: height - 345, size: 12, font });
   page.drawText(`Quantité : 1`, { x: 50, y: height - 360, size: 12, font });
   page.drawText(`Prix unitaire : ${price} CHF`, { x: 50, y: height - 375, size: 12, font });
@@ -63,16 +63,13 @@ async function generateInvoicePDF({ firstName, lastName, email, type, price, ses
 /* -------------------------------------------------------
  🎫 BILLET A6 HORIZONTAL
 ------------------------------------------------------- */
-/* -------------------------------------------------------
- 🎫 BILLET A6 HORIZONTAL - VERSION PROPRE
-------------------------------------------------------- */
-async function generateTicketPDF({ firstName, lastName, type, sessionId }) {
+async function generateTicketPDF({ firstName, lastName, type, orderNumber }) {
   const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([420, 297]); // A6 horizontal
+  const page = pdfDoc.addPage([420, 297]);
   const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const { width, height } = page.getSize();
 
-  // --- Fond dégradé (vert -> jaune clair) ---
+  // Fond dégradé
   const gradientSteps = 20;
   for (let i = 0; i < gradientSteps; i++) {
     const t = i / gradientSteps;
@@ -88,7 +85,7 @@ async function generateTicketPDF({ firstName, lastName, type, sessionId }) {
     });
   }
 
-  // --- Cadre gris foncé ---
+  // Cadre
   page.drawRectangle({
     x: 10,
     y: 10,
@@ -98,138 +95,67 @@ async function generateTicketPDF({ firstName, lastName, type, sessionId }) {
     color: rgb(1, 1, 1),
   });
 
-  // --- Logo centré en haut ---
+  // Logo
   const logoUrl = "https://evenement.gvapaintball.com/terrain_GE_gvapaintball_01.png";
   const logoBytes = await fetch(logoUrl).then((r) => r.arrayBuffer());
   const logo = await pdfDoc.embedPng(logoBytes);
-  const logoScale = 0.25;
-  const logoDims = logo.scale(logoScale);
+  const logoDims = logo.scale(0.25);
   const logoX = (width - logoDims.width) / 2;
   const logoY = height - logoDims.height - 25;
-  page.drawImage(logo, {
-    x: logoX,
-    y: logoY,
-    width: logoDims.width,
-    height: logoDims.height,
-  });
+  page.drawImage(logo, { x: logoX, y: logoY, width: logoDims.width, height: logoDims.height });
 
-  // --- Texte sous le logo ---
   const textColor = rgb(0, 0, 0);
-  const titleY = logoY - 25;
+  page.drawText("THE LAST", { x: 140, y: height - 70, size: 18, font, color: textColor });
 
-  page.drawText("THE LAST", {
-    x: (width - font.widthOfTextAtSize("THE LAST", 18)) / 2,
-    y: titleY,
-    size: 18,
-    font,
-    color: textColor,
-  });
-
-  // --- Bloc infos participant ---
-  page.drawText(`Nom : ${firstName} ${lastName}`, {
-    x: 30,
-    y: 120,
-    size: 12,
-    font,
-    color: textColor,
-  });
+  // Infos
+  page.drawText(`Nom : ${firstName} ${lastName}`, { x: 30, y: 120, size: 12, font, color: textColor });
   page.drawText(`Type : ${type}`, { x: 30, y: 100, size: 12, font, color: textColor });
   page.drawText("Samedi 18 octobre 2025 — Dès 19h", { x: 30, y: 80, size: 12, font, color: textColor });
   page.drawText("Entrée valable pour 1 personne", { x: 30, y: 60, size: 12, font, color: textColor });
 
-  // --- QR Code ---
-  const qrData = await QRCode.toDataURL(`https://evenement.gvapaintball.com/success?session_id=${sessionId}`);
+  // QR Code
+  const qrData = await QRCode.toDataURL(`https://evenement.gvapaintball.com/success?order=${orderNumber}`);
   const qrImage = await pdfDoc.embedPng(qrData);
-  const qrSize = 80;
-  page.drawImage(qrImage, {
-    x: width - 120,
-    y: 40,
-    width: qrSize,
-    height: qrSize,
-  });
+  page.drawImage(qrImage, { x: width - 120, y: 40, width: 80, height: 80 });
 
-  // --- Numéro du billet ---
-  page.drawText(`Billet n°: ${sessionId}`, {
-    x: 30,
-    y: 30,
-    size: 10,
-    font,
-    color: textColor,
-  });
+  // Numéro du billet
+  page.drawText(`Billet n°: ${orderNumber}`, { x: 30, y: 30, size: 10, font, color: textColor });
 
   const pdfBytes = await pdfDoc.save();
   return Buffer.from(pdfBytes).toString("base64");
 }
 
-
 /* -------------------------------------------------------
- ✉️ TEMPLATE EMAIL (le tien)
+ ✉️ TEMPLATE EMAIL
 ------------------------------------------------------- */
 const emailTemplate = (data) => `
 <!doctype html>
 <html lang="fr">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Confirmation – The Last</title>
-</head>
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Confirmation – The Last</title></head>
 <body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#f6f6f6;color:#333;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-    <tr>
-      <td align="center" style="padding:30px 15px;">
-        <table width="600" style="background:white;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
-          <tr>
-            <td align="center" style="background:linear-gradient(135deg,#22c55e,#facc15);padding:25px;">
-              <img src="https://evenement.gvapaintball.com/terrain_GE_gvapaintball_01.png" alt="GVA Paintball" width="100" style="display:block;border:none;margin-bottom:10px;">
-              <h1 style="margin:0;font-size:24px;color:#fff;font-weight:bold;">The Last @ GVA Paintball</h1>
-              <p style="color:#fff;margin:10px 0 0 0;font-size:16px;">Samedi 18 octobre 2025</p>
-            </td>
-          </tr>
-
-          <tr>
-            <td style="padding:30px;">
-              <h2 style="color:#22c55e;margin-top:0;">🎉 Paiement confirmé !</h2>
-              <p>Bonjour <strong>${data.firstName} ${data.lastName}</strong>,</p>
-              <p>Merci pour ta commande ! Ton billet est bien enregistré pour <b>The Last</b>.</p>
-              
-              <table cellspacing="0" cellpadding="6" border="0" width="100%" style="background:#fafafa;border:1px solid #eee;border-radius:8px;margin:20px 0;">
-                <tr><td style="font-weight:bold;width:40%;">Type de billet</td><td>${data.type}</td></tr>
-                <tr><td style="font-weight:bold;">Montant</td><td>${data.price} CHF</td></tr>
-                <tr><td style="font-weight:bold;">Email</td><td>${data.email}</td></tr>
-                <tr><td style="font-weight:bold;">N° de commande</td><td>${data.sessionId}</td></tr>
-              </table>
-
-              <p>Tu trouveras ci-joint ton <strong>billet PDF</strong> et ta <strong>facture</strong>.</p>
-              <p>Présente ton billet à l’entrée le <b>samedi 18 octobre 2025 dès 19h</b>.</p>
-
-              <div style="text-align:center;margin-top:30px;">
-                <a href="https://evenement.gvapaintball.com/success?session_id=${data.sessionId}" 
-                   style="display:inline-block;background:#22c55e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:bold;">
-                   Voir ma commande
-                </a>
-              </div>
-
-              <hr style="margin:40px 0;border:none;border-top:1px solid #eee;">
-              <p style="font-size:13px;color:#777;">
-                Pour toute question, réponds simplement à ce message ou contacte-nous sur Instagram 
-                <a href="https://www.instagram.com/gvapaintball" style="color:#22c55e;text-decoration:none;">@gvapaintball</a>.
-              </p>
-            </td>
-          </tr>
-
-          <tr>
-            <td align="center" style="background:#f9fafb;padding:20px;font-size:12px;color:#999;">
-              © 2025 GVA Paintball — Tous droits réservés<br>
-              <a href="https://evenement.gvapaintball.com" style="color:#22c55e;text-decoration:none;">evenement.gvapaintball.com</a>
-            </td>
-          </tr>
+  <table width="100%"><tr><td align="center" style="padding:30px 15px;">
+    <table width="600" style="background:white;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
+      <tr><td align="center" style="background:linear-gradient(135deg,#22c55e,#facc15);padding:25px;">
+        <img src="https://evenement.gvapaintball.com/terrain_GE_gvapaintball_01.png" width="100" />
+        <h1 style="color:#fff;margin:10px 0 0 0;">The Last @ GVA Paintball</h1>
+      </td></tr>
+      <tr><td style="padding:30px;">
+        <h2 style="color:#22c55e;">🎉 Paiement confirmé !</h2>
+        <p>Bonjour <strong>${data.firstName} ${data.lastName}</strong>,</p>
+        <p>Merci pour ta commande ! Voici ton billet pour <b>The Last</b>.</p>
+        <table cellspacing="0" cellpadding="6" border="0" width="100%" style="background:#fafafa;border:1px solid #eee;border-radius:8px;margin:20px 0;">
+          <tr><td style="font-weight:bold;">Type de billet</td><td>${data.type}</td></tr>
+          <tr><td style="font-weight:bold;">Montant</td><td>${data.price} CHF</td></tr>
+          <tr><td style="font-weight:bold;">Email</td><td>${data.email}</td></tr>
+          <tr><td style="font-weight:bold;">N° de commande</td><td>${data.orderNumber}</td></tr>
         </table>
-      </td>
-    </tr>
-  </table>
+        <p>Ton billet et ta facture sont joints à ce message.</p>
+      </td></tr>
+      <tr><td align="center" style="background:#f9fafb;padding:20px;font-size:12px;color:#999;">© 2025 GVA Paintball</td></tr>
+    </table>
+  </td></tr></table>
 </body>
-</html>
-`;
+</html>`;
 
 /* -------------------------------------------------------
  💳 WEBHOOK STRIPE
@@ -238,8 +164,7 @@ export async function POST(req) {
   try {
     const body = await req.text();
     const sig = req.headers.get("stripe-signature");
-    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    const event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
+    const event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET);
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
@@ -253,33 +178,37 @@ export async function POST(req) {
       console.log("✅ Paiement confirmé :", sessionId);
 
       const client = await pool.connect();
-      await client.query(
+      const { rows } = await client.query(
         `INSERT INTO orders (session_id, first_name, last_name, email, type, price, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+         VALUES ($1, $2, $3, $4, $5, $6, NOW())
+         RETURNING order_number`,
         [sessionId, firstName, lastName, email, type, price]
       );
+      const orderNumber = rows[0].order_number;
       client.release();
 
-      const ticketPdf = await generateTicketPDF({ firstName, lastName, type, sessionId });
-      const invoicePdf = await generateInvoicePDF({ firstName, lastName, email, type, price, sessionId });
+      // Génère les PDFs
+      const ticketPdf = await generateTicketPDF({ firstName, lastName, type, orderNumber });
+      const invoicePdf = await generateInvoicePDF({ firstName, lastName, email, type, price, orderNumber });
 
+      // Envoie l’email
       await resend.emails.send({
-        from: "The last <evenement@gvapaintball.com>",
+        from: "The Last <evenement@gvapaintball.com>",
         to: email,
-        subject: "Ton billet et ta facture – The Last @ GVA Paintball",
-        html: emailTemplate({ firstName, lastName, type, price, email, sessionId }),
+        subject: `🎫 Confirmation – The Last (Commande #${orderNumber})`,
+        html: emailTemplate({ firstName, lastName, type, price, email, orderNumber }),
         attachments: [
-          { filename: "billet.pdf", content: ticketPdf, encoding: "base64" },
-          { filename: "facture.pdf", content: invoicePdf, encoding: "base64" },
+          { filename: `Billet_${orderNumber}.pdf`, content: ticketPdf, encoding: "base64" },
+          { filename: `Facture_${orderNumber}.pdf`, content: invoicePdf, encoding: "base64" },
         ],
       });
 
-      console.log(`Mail envoyé à ${email}`);
+      console.log(`📧 Mail envoyé à ${email} (Commande #${orderNumber})`);
     }
 
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (err) {
-    console.error("Erreur globale du webhook :", err);
+    console.error("🔥 Erreur globale du webhook :", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

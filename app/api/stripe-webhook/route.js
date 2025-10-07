@@ -114,7 +114,7 @@ async function generateTicketPDF({ firstName, lastName, type, orderNumber }) {
   page.drawText("Entrée valable pour 1 personne", { x: 30, y: 60, size: 12, font, color: textColor });
 
   // QR Code
-  const qrData = await QRCode.toDataURL(`https://evenement.gvapaintball.com/success?order=${orderNumber}`);
+  const qrData = await QRCode.toDataURL(`https://evenement.gvapaintball.com/success?id=${orderNumber}`);
   const qrImage = await pdfDoc.embedPng(qrData);
   page.drawImage(qrImage, { x: width - 120, y: 40, width: 80, height: 80 });
 

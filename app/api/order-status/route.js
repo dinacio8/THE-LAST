@@ -1,41 +1,46 @@
-import Stripe from "stripe";
+import pkg from "pg";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const { Pool } = pkg;
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
-/**
- * Récupère le statut d'une commande Stripe
- */
 export const dynamic = "force-dynamic";
 
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
-    const session_id = searchParams.get("session_id");
+    const id = searchParams.get("id"); // 🟢 On utilise maintenant "id"
 
-    if (!session_id) {
-      return new Response(
-        JSON.stringify({ error: "Session ID manquant" }),
-        { status: 400 }
-      );
+    if (!id) {
+      return new Response(JSON.stringify({ error: "ID de commande manquant" }), {
+        status: 400,
+      });
     }
 
-    const session = await stripe.checkout.sessions.retrieve(session_id, {
-      expand: ["line_items"],
-    });
+    const client = await pool.connect();
+    const { rows } = await client.query(
+      `SELECT id, first_name, last_name, email, type, price, created_at 
+       FROM orders 
+       WHERE id = $1 LIMIT 1`,
+      [id]
+    );
+    client.release();
 
-    const line = session.line_items?.data[0];
+    if (rows.length === 0) {
+      return new Response(JSON.stringify({ error: "Commande introuvable" }), {
+        status: 404,
+      });
+    }
+
+    const order = rows[0];
 
     const response = {
-      firstName: session.metadata.firstName,
-      lastName: session.metadata.lastName,
-      email: session.customer_details?.email,
-      type: session.metadata.type,
-      price: line?.price?.unit_amount
-        ? line.price.unit_amount / 100
-        : null,
-      invoice: session.invoice || "En attente",
-      ticket: session.id,
-      status: session.payment_status === "paid" ? "sent" : "pending",
+      first_name: order.first_name,
+      last_name: order.last_name,
+      email: order.email,
+      type: order.type,
+      price: order.price,
+      created_at: order.created_at,
+      status: "sent", // Tu pourras remplacer ça par un champ réel plus tard
     };
 
     return new Response(JSON.stringify(response), {

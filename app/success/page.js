@@ -1,42 +1,39 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function SuccessPage() {
+  const [order, setOrder] = useState(null);
+  const [statusMsg, setStatusMsg] = useState("Chargement des informations...");
+  const [error, setError] = useState(false);
+
   useEffect(() => {
     async function loadStatus() {
       const params = new URLSearchParams(window.location.search);
-      const session_id = params.get("session_id");
+      const orderId = params.get("id"); // 🟢 on utilise maintenant "id" au lieu de "session_id"
 
-      if (!session_id) {
-        document.getElementById("statusMsg").textContent =
-          "❌ Impossible de retrouver les infos de commande.";
+      if (!orderId) {
+        setStatusMsg("❌ Impossible de retrouver les informations de commande.");
+        setError(true);
         return;
       }
 
       try {
-        const res = await fetch(`/api/order-status?session_id=${session_id}`);
+        const res = await fetch(`/api/order-status?id=${orderId}`);
         const data = await res.json();
 
         if (!res.ok) {
-          document.getElementById("statusMsg").textContent =
-            "❌ Commande introuvable ou erreur serveur.";
-          console.error(data);
+          console.error("Erreur API:", data);
+          setStatusMsg("❌ Commande introuvable ou erreur serveur.");
+          setError(true);
           return;
         }
 
-        document.getElementById("statusMsg").classList.add("hidden");
-        document.getElementById("details").classList.remove("hidden");
-
-        document.getElementById("name").textContent = `${data.firstName} ${data.lastName}`;
-        document.getElementById("type").textContent = data.type;
-        document.getElementById("price").textContent = data.price;
-        document.getElementById("email").textContent = data.email;
-        document.getElementById("sent").textContent =
-          data.status === "sent" ? "✅ Envoyé" : "⏳ En cours d’envoi";
+        setOrder(data);
+        setError(false);
       } catch (err) {
         console.error("Erreur communication API:", err);
-        document.getElementById("statusMsg").textContent =
-          "⚠️ Erreur de communication avec le serveur.";
+        setStatusMsg("⚠️ Erreur de communication avec le serveur.");
+        setError(true);
       }
     }
 
@@ -45,39 +42,49 @@ export default function SuccessPage() {
 
   return (
     <main className="bg-gray-50 text-gray-900 flex flex-col min-h-screen">
-      {/* MAIN */}
       <section className="flex flex-col items-center justify-center flex-1 p-6 text-center">
         <h1 className="text-3xl font-bold text-green-600 mb-6">
           🎉 Paiement confirmé !
         </h1>
-        <p id="statusMsg" className="text-lg text-gray-700">
-          Chargement des informations...
-        </p>
 
-        <div
-          id="details"
-          className="hidden mt-6 bg-white shadow-lg rounded-lg p-6 max-w-md text-left"
-        >
-          <p>
-            <strong>Nom :</strong> <span id="name"></span>
+        {/* Message d’attente ou d’erreur */}
+        {!order && (
+          <p className={`text-lg ${error ? "text-red-600" : "text-gray-700"}`}>
+            {statusMsg}
           </p>
-          <p>
-            <strong>Type de billet :</strong> <span id="type"></span>
-          </p>
-          <p>
-            <strong>Prix :</strong> <span id="price"></span> CHF
-          </p>
-          <p>
-            <strong>Email :</strong> <span id="email"></span>
-          </p>
-          <p>
-            <strong>Statut :</strong> <span id="sent"></span>
-          </p>
-        </div>
+        )}
+
+        {/* Détails de la commande */}
+        {order && (
+          <div className="mt-6 bg-white shadow-lg rounded-lg p-6 max-w-md text-left">
+            <p>
+              <strong>Nom :</strong> {order.first_name} {order.last_name}
+            </p>
+            <p>
+              <strong>Type de billet :</strong> {order.type}
+            </p>
+            <p>
+              <strong>Prix :</strong> {order.price} CHF
+            </p>
+            <p>
+              <strong>Email :</strong> {order.email}
+            </p>
+            <p>
+              <strong>Statut :</strong>{" "}
+              {order.sent ? "✅ Envoyé" : "⏳ En cours d’envoi"}
+            </p>
+
+            <div className="mt-4 text-center">
+              <p className="text-gray-500 text-sm">
+                Ton billet et ta facture ont été envoyés par e-mail.
+              </p>
+            </div>
+          </div>
+        )}
 
         <a
           href="/"
-          className="mt-8 inline-block bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg"
+          className="mt-8 inline-block bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-all"
         >
           Retour à l'accueil
         </a>
