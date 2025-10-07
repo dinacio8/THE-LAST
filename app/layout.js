@@ -27,9 +27,37 @@ export default function RootLayout({ children }) {
 
         <main className="pt-28 min-h-screen">{children}</main>
 
-        <footer className="bg-gray-100 p-6 text-center text-sm text-gray-500 mt-10">
-          © 2025 GVA Paintball — Tous droits réservés
-        </footer>
+ <footer className="bg-gray-900 text-white py-6 text-center mt-auto">
+        <div className="flex justify-center gap-6 mb-3">
+          <a
+            href="https://www.instagram.com/gvapaintball/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:opacity-80 transition"
+          >
+            <img
+              src="/icons/instagram.svg"
+              alt="Instagram"
+              className="h-7 w-7 inline"
+            />
+          </a>
+          <a
+            href="https://www.tiktok.com/@gvapaintball"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:opacity-80 transition"
+          >
+            <img
+              src="/icons/tiktok.svg"
+              alt="TikTok"
+              className="h-7 w-7 inline"
+            />
+          </a>
+        </div>
+        <p className="text-gray-400 text-sm">
+          © {new Date().getFullYear()} GVA Paintball — Tous droits réservés
+        </p>
+      </footer>
       </body>
     </html>
   );
