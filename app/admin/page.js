@@ -101,33 +101,33 @@ export default function AdminPage() {
                 ADMIN - THE LAST
               </h1>
             </div>
-<div className="flex items-center gap-3">
-  <button
-    onClick={exportExcel}
-    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md"
-  >
-    📊 Export Excel
-  </button>
-  <button
-    onClick={() => window.location.href = "/api/download-all?type=ticket"}
-    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
-  >
-    🎟 Tous les billets
-  </button>
-  <button
-    onClick={() => window.location.href = "/api/download-all?type=invoice"}
-    className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md"
-  >
-    📄 Toutes les factures
-  </button>
-  <button
-    onClick={handleLogout}
-    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md"
-  >
-    🚪 Déconnexion
-  </button>
-</div>
 
+            <div className="flex items-center gap-3">
+              <button
+                onClick={exportExcel}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md"
+              >
+                📊 Export Excel
+              </button>
+              <button
+                onClick={() => (window.location.href = "/api/download-all?type=ticket")}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+              >
+                🎟 Tous les billets
+              </button>
+              <button
+                onClick={() => (window.location.href = "/api/download-all?type=invoice")}
+                className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md"
+              >
+                📄 Toutes les factures
+              </button>
+              <button
+                onClick={handleLogout}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md"
+              >
+                🚪 Déconnexion
+              </button>
+            </div>
           </header>
 
           <main className="p-6 overflow-x-auto">
@@ -139,7 +139,7 @@ export default function AdminPage() {
               <table className="min-w-full text-sm">
                 <thead className="bg-green-600 text-white">
                   <tr>
-                    <th className="py-2 px-3">ID</th>
+                    <th className="py-2 px-3">N° de commande</th>
                     <th className="py-2 px-3">Nom</th>
                     <th className="py-2 px-3">Email</th>
                     <th className="py-2 px-3">Prix</th>
@@ -154,7 +154,7 @@ export default function AdminPage() {
                   {orders.length === 0 ? (
                     <tr>
                       <td
-                        colSpan="8"
+                        colSpan="9"
                         className="text-center py-6 text-gray-500 italic"
                       >
                         Aucune commande trouvée
@@ -163,21 +163,40 @@ export default function AdminPage() {
                   ) : (
                     orders.map((order) => (
                       <tr key={order.id}>
-                        <td className="py-2 px-3 text-center">{order.id}</td>
+                        {/* 🟢 Affiche order_number à la place de id */}
+                        <td className="py-2 px-3 text-center font-semibold text-gray-700">
+                          {order.order_number}
+                        </td>
+
                         <td className="py-2 px-3">
                           {order.first_name} {order.last_name}
                         </td>
+
                         <td className="py-2 px-3">{order.email}</td>
-<td className="py-2 px-3 text-center">
-  {order.price ? Number(order.price).toFixed(2) + " CHF" : "—"}
-</td>
+
+                        <td className="py-2 px-3 text-center">
+                          {order.price ? Number(order.price).toFixed(2) + " CHF" : "—"}
+                        </td>
 
                         <td className="py-2 px-3 text-center">
                           {order.status || "—"}
                         </td>
+
                         <td className="py-2 px-3 text-center">
                           {new Date(order.created_at).toLocaleString("fr-CH")}
                         </td>
+
+                        {/* 🟩 Colonne Scan (valide / attente) */}
+                        <td
+                          className={`py-2 px-3 text-center font-semibold ${
+                            order.used
+                              ? "text-green-600"
+                              : "text-yellow-500"
+                          }`}
+                        >
+                          {order.used ? "Déjà scanné" : "En attente de scan"}
+                        </td>
+
                         <td className="py-2 px-3 text-center">
                           <a
                             href={`/api/download-pdf?id=${order.id}&type=ticket`}
@@ -186,6 +205,7 @@ export default function AdminPage() {
                             🎟 Télécharger
                           </a>
                         </td>
+
                         <td className="py-2 px-3 text-center">
                           <a
                             href={`/api/download-pdf?id=${order.id}&type=invoice`}
