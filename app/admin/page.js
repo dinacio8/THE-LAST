@@ -3,21 +3,31 @@
 import { useEffect, useState } from "react";
 
 const ADMIN_PASSWORD = "GvaPaintball2025."; // 🔒 change-le si besoin
-const MAX_TICKETS = 320; // 🎫 limite totale
+const MAX_TICKETS = 320; // 🎫 capacité max
 
 export default function AdminPage() {
   const [isLogged, setIsLogged] = useState(false);
   const [password, setPassword] = useState("");
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState("");
+  const [lastUpdate, setLastUpdate] = useState(null);
 
-  // Vérifie si l'admin est déjà logué
+  // Vérifie si l’admin est déjà logué
   useEffect(() => {
     if (localStorage.getItem("isAdmin") === "true") {
       setIsLogged(true);
       loadOrders();
     }
   }, []);
+
+  // 🔄 Auto-refresh toutes les 10 s
+  useEffect(() => {
+    if (!isLogged) return;
+    const interval = setInterval(() => {
+      loadOrders(true);
+    }, 10000); // 10 secondes
+    return () => clearInterval(interval);
+  }, [isLogged]);
 
   // 🔓 Connexion
   const handleLogin = () => {
@@ -40,12 +50,14 @@ export default function AdminPage() {
   };
 
   // 📦 Chargement des commandes
-  const loadOrders = async () => {
+  const loadOrders = async (silent = false) => {
     try {
-      const res = await fetch("/api/admin-orders");
+      if (!silent) console.log("🔄 Chargement des commandes...");
+      const res = await fetch("/api/admin-orders", { cache: "no-store" });
       if (!res.ok) throw new Error("Erreur API");
       const data = await res.json();
       setOrders(data);
+      setLastUpdate(new Date());
     } catch (err) {
       console.error("Erreur lors du chargement des commandes:", err);
     }
@@ -177,6 +189,13 @@ export default function AdminPage() {
                 ></div>
               </div>
             </div>
+
+            {lastUpdate && (
+              <p className="text-xs text-gray-500 mt-3 text-right">
+                Dernière mise à jour :{" "}
+                {lastUpdate.toLocaleTimeString("fr-CH")}
+              </p>
+            )}
           </section>
 
           {/* 🧾 Tableau principal */}
@@ -203,10 +222,7 @@ export default function AdminPage() {
                 <tbody className="divide-y divide-gray-100">
                   {orders.length === 0 ? (
                     <tr>
-                      <td
-                        colSpan="9"
-                        className="text-center py-6 text-gray-500 italic"
-                      >
+                      <td colSpan="9" className="text-center py-6 text-gray-500 italic">
                         Aucune commande trouvée
                       </td>
                     </tr>
