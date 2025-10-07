@@ -31,10 +31,8 @@ async function generateInvoicePDF({ firstName, lastName, email, type, price, ses
   page.drawText("FACTURE", { x: 420, y: height - 70, size: 22, font, color: rgb(0.13, 0.6, 0.27) });
 
   // Infos entreprise
-  page.drawText("No paint No game SARL", { x: 50, y: height - 140, size: 14, font });
-  page.drawText("", { x: 50, y: height - 155, size: 12, font });
-  page.drawText("1223 Cologny", { x: 50, y: height - 170, size: 12, font });
-  page.drawText("admin@gvapaintball.com", { x: 50, y: height - 185, size: 12, font });
+  page.drawText("No paint no game SARL", { x: 50, y: height - 140, size: 14, font });
+  page.drawText("admin@gvapaintball.com", { x: 50, y: height - 155, size: 12, font });
 
   // Client
   page.drawText("Facturé à :", { x: 50, y: height - 230, size: 12, font, color: rgb(0, 0, 0.5) });
@@ -56,7 +54,6 @@ async function generateInvoicePDF({ firstName, lastName, email, type, price, ses
   page.drawText(`${price} CHF`, { x: 490, y: height - 420, size: 14, font, color: rgb(0.13, 0.6, 0.27) });
 
   // Pied de page
-  page.drawText("TVA non applicable – art. 21, al. 6, LTVA", { x: 50, y: 60, size: 10, font, color: rgb(0.4, 0.4, 0.4) });
   page.drawText("Merci pour votre commande et à bientôt chez GVA Paintball !", { x: 50, y: 40, size: 10, font });
 
   const pdfBytes = await pdfDoc.save();
@@ -68,38 +65,94 @@ async function generateInvoicePDF({ firstName, lastName, email, type, price, ses
 ------------------------------------------------------- */
 async function generateTicketPDF({ firstName, lastName, type, sessionId }) {
   const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([420, 297]);
+  const page = pdfDoc.addPage([420, 297]); // A6 horizontal
   const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const { width, height } = page.getSize();
 
-  // Fond gris clair + bordure
-  page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(0.95, 0.95, 0.95) });
-  page.drawRectangle({ x: 5, y: 5, width: width - 10, height: height - 10, borderWidth: 2, color: rgb(0.13, 0.6, 0.27) });
+  // --- Fond dégradé (vert vers jaune) ---
+  const gradientSteps = 20;
+  for (let i = 0; i < gradientSteps; i++) {
+    const t = i / gradientSteps;
+    const r = 0.13 + (1.0 - 0.13) * t; // vert -> jaune clair
+    const g = 0.6 + (0.98 - 0.6) * t;
+    const b = 0.27 * (1 - t);
+    page.drawRectangle({
+      x: 0,
+      y: (height / gradientSteps) * i,
+      width,
+      height: height / gradientSteps,
+      color: rgb(r, g, b),
+    });
+  }
 
-  // Logo
+  // --- Cadre blanc ---
+  page.drawRectangle({
+    x: 10,
+    y: 10,
+    width: width - 20,
+    height: height - 20,
+    borderWidth: 2,
+    color: rgb(1, 1, 1),
+  });
+
+  // --- Logo centré verticalement sans déformation ---
   const logoUrl = "https://evenement.gvapaintball.com/terrain_GE_gvapaintball_01.png";
   const logoBytes = await fetch(logoUrl).then((r) => r.arrayBuffer());
   const logo = await pdfDoc.embedPng(logoBytes);
-  page.drawImage(logo, { x: 30, y: height - 100, width: 80, height: 80 });
+  const logoScale = 0.22; // ajustable
+  const logoDims = logo.scale(logoScale);
+  const logoX = 25;
+  const logoY = height - logoDims.height - 30;
+  page.drawImage(logo, {
+    x: logoX,
+    y: logoY,
+    width: logoDims.width,
+    height: logoDims.height,
+  });
 
-  // Texte principal
-  page.drawText("THE LAST @ GVA PAINTBALL", { x: 130, y: height - 60, size: 18, font, color: rgb(0.13, 0.6, 0.27) });
-  page.drawText("Samedi 18 octobre 2025 — Dès 19h", { x: 130, y: height - 80, size: 10, font });
-  page.drawText(`Nom: ${firstName} ${lastName}`, { x: 30, y: 130, size: 12, font });
-  page.drawText(`Type: ${type}`, { x: 30, y: 110, size: 12, font });
-  page.drawText("Lieu: GVA Paintball, Meyrin (GE)", { x: 30, y: 90, size: 12, font });
-  page.drawText("Entrée valable pour 1 personne", { x: 30, y: 70, size: 12, font });
+  // --- Titre principal ---
+  page.drawText("THE LAST", {
+    x: 130,
+    y: height - 60,
+    size: 16,
+    font,
+    color: rgb(1, 1, 1),
+  });
 
-  // QR Code
+  // --- Détails date et lieu ---
+  page.drawText("Samedi 18 octobre 2025 — Dès 19h", {
+    x: 130,
+    y: height - 80,
+    size: 10,
+    font,
+    color: rgb(1, 1, 1),
+  });
+
+  // --- Infos participant ---
+  page.drawText(`Nom : ${firstName} ${lastName}`, { x: 30, y: 120, size: 12, font, color: rgb(1, 1, 1) });
+  page.drawText(`Type : ${type}`, { x: 30, y: 100, size: 12, font, color: rgb(1, 1, 1) });
+  page.drawText("Lieu : GVA Paintball", { x: 30, y: 80, size: 12, font, color: rgb(1, 1, 1) });
+  page.drawText("Entrée valable pour 1 personne", { x: 30, y: 60, size: 12, font, color: rgb(1, 1, 1) });
+
+  // --- QR Code ---
   const qrData = await QRCode.toDataURL(`https://evenement.gvapaintball.com/success?session_id=${sessionId}`);
   const qrImage = await pdfDoc.embedPng(qrData);
-  page.drawImage(qrImage, { x: width - 130, y: 50, width: 80, height: 80 });
+  const qrSize = 80;
+  page.drawImage(qrImage, { x: width - 120, y: 40, width: qrSize, height: qrSize });
 
-  page.drawText(`Billet n°: ${sessionId}`, { x: 30, y: 40, size: 10, font, color: rgb(0.4, 0.4, 0.4) });
+  // --- Numéro du billet ---
+  page.drawText(`Billet n°: ${sessionId}`, {
+    x: 30,
+    y: 30,
+    size: 10,
+    font,
+    color: rgb(1, 1, 1),
+  });
 
   const pdfBytes = await pdfDoc.save();
   return Buffer.from(pdfBytes).toString("base64");
 }
+
 
 /* -------------------------------------------------------
  ✉️ TEMPLATE EMAIL (le tien)
@@ -110,7 +163,7 @@ const emailTemplate = (data) => `
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Confirmation – The Last @ GVA Paintball</title>
+  <title>Confirmation – The Last</title>
 </head>
 <body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#f6f6f6;color:#333;">
   <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
