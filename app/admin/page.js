@@ -250,7 +250,7 @@ export default function AdminPage() {
                             order.used ? "text-green-600" : "text-yellow-500"
                           }`}
                         >
-                          {order.used ? "Valide" : "En attente"}
+                          {order.used ? "Déjà scanné" : "En attente de scan"}
                         </td>
                         <td className="py-2 px-3 text-center">
                           <a
