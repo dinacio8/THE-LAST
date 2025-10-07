@@ -145,6 +145,7 @@ export default function AdminPage() {
                     <th className="py-2 px-3">Prix</th>
                     <th className="py-2 px-3">Statut</th>
                     <th className="py-2 px-3">Date</th>
+                    <th className="py-2 px-3">Scan</th>
                     <th className="py-2 px-3">Billet</th>
                     <th className="py-2 px-3">Facture</th>
                   </tr>
