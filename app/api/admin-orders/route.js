@@ -17,6 +17,7 @@ export async function GET() {
     const query = `
       SELECT 
         id,
+        order_number,
         session_id,
         first_name,
         last_name,
@@ -24,7 +25,8 @@ export async function GET() {
         type,
         price,
         status,
-        created_at
+        created_at,
+        used
       FROM orders
       ORDER BY created_at DESC
     `;

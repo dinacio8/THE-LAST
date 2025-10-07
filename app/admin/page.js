@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 const ADMIN_PASSWORD = "GvaPaintball2025."; // 🔒 change-le si besoin
+const MAX_TICKETS = 320; // 🎫 limite totale
 
 export default function AdminPage() {
   const [isLogged, setIsLogged] = useState(false);
@@ -54,6 +55,14 @@ export default function AdminPage() {
   const exportExcel = () => {
     window.location.href = "/api/export-orders";
   };
+
+  // 🧮 Statistiques
+  const totalSold = orders.length;
+  const totalValid = orders.filter((o) => o.used === true).length;
+  const totalPending = totalSold - totalValid;
+
+  const percentSold = Math.min((totalSold / MAX_TICKETS) * 100, 100);
+  const percentValid = totalSold > 0 ? (totalValid / totalSold) * 100 : 0;
 
   // 🧱 UI
   return (
@@ -130,6 +139,47 @@ export default function AdminPage() {
             </div>
           </header>
 
+          {/* 🟩 Tableau de bord rapide */}
+          <section className="p-6 bg-white shadow-md mt-4 mx-4 rounded-lg">
+            <h2 className="text-xl font-bold text-gray-800 mb-3">
+              🎫 Suivi en direct
+            </h2>
+
+            <p className="text-gray-700 mb-4">
+              Billets vendus : <b>{totalSold}</b> / {MAX_TICKETS} — ✅{" "}
+              <b>{totalValid}</b> validés / ⏳ <b>{totalPending}</b> en attente
+            </p>
+
+            {/* Barre 1 : ventes totales */}
+            <div className="mb-3">
+              <div className="flex justify-between text-xs text-gray-600 mb-1">
+                <span>Ventes</span>
+                <span>{percentSold.toFixed(1)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div
+                  className="bg-green-500 h-3 rounded-full transition-all duration-500"
+                  style={{ width: `${percentSold}%` }}
+                ></div>
+              </div>
+            </div>
+
+            {/* Barre 2 : billets scannés */}
+            <div>
+              <div className="flex justify-between text-xs text-gray-600 mb-1">
+                <span>Billets scannés</span>
+                <span>{percentValid.toFixed(1)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div
+                  className="bg-yellow-400 h-3 rounded-full transition-all duration-500"
+                  style={{ width: `${percentValid}%` }}
+                ></div>
+              </div>
+            </div>
+          </section>
+
+          {/* 🧾 Tableau principal */}
           <main className="p-6 overflow-x-auto">
             <h2 className="text-2xl font-bold text-center text-green-600 mb-6">
               Liste des commandes
@@ -163,40 +213,29 @@ export default function AdminPage() {
                   ) : (
                     orders.map((order) => (
                       <tr key={order.id}>
-                        {/* 🟢 Affiche order_number à la place de id */}
                         <td className="py-2 px-3 text-center font-semibold text-gray-700">
                           {order.order_number}
                         </td>
-
                         <td className="py-2 px-3">
                           {order.first_name} {order.last_name}
                         </td>
-
                         <td className="py-2 px-3">{order.email}</td>
-
                         <td className="py-2 px-3 text-center">
                           {order.price ? Number(order.price).toFixed(2) + " CHF" : "—"}
                         </td>
-
                         <td className="py-2 px-3 text-center">
                           {order.status || "—"}
                         </td>
-
                         <td className="py-2 px-3 text-center">
                           {new Date(order.created_at).toLocaleString("fr-CH")}
                         </td>
-
-                        {/* 🟩 Colonne Scan (valide / attente) */}
                         <td
                           className={`py-2 px-3 text-center font-semibold ${
-                            order.used
-                              ? "text-green-600"
-                              : "text-yellow-500"
+                            order.used ? "text-green-600" : "text-yellow-500"
                           }`}
                         >
-                          {order.used ? "Déjà scanné" : "En attente de scan"}
+                          {order.used ? "Valide" : "En attente"}
                         </td>
-
                         <td className="py-2 px-3 text-center">
                           <a
                             href={`/api/download-pdf?id=${order.id}&type=ticket`}
@@ -205,7 +244,6 @@ export default function AdminPage() {
                             🎟 Télécharger
                           </a>
                         </td>
-
                         <td className="py-2 px-3 text-center">
                           <a
                             href={`/api/download-pdf?id=${order.id}&type=invoice`}
