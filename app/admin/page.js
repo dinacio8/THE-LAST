@@ -154,9 +154,10 @@ export default function AdminPage() {
                           {order.first_name} {order.last_name}
                         </td>
                         <td className="py-2 px-3">{order.email}</td>
-                        <td className="py-2 px-3 text-center">
-                          {order.price?.toFixed(2)} CHF
-                        </td>
+<td className="py-2 px-3 text-center">
+  {order.price ? Number(order.price).toFixed(2) + " CHF" : "—"}
+</td>
+
                         <td className="py-2 px-3 text-center">
                           {order.status || "—"}
                         </td>
