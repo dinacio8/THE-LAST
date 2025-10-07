@@ -85,7 +85,7 @@ export default function SuccessPage() {
         {order && (
           <div className="mt-6 bg-white shadow-lg rounded-lg p-6 max-w-md text-left">
             <p>
-              <strong>Nom :</strong> {order.first_name} {order.last_name}
+              <strong>Nom :</strong> {order.firstname} {order.lastname}
             </p>
             <p>
               <strong>Type de billet :</strong> {order.type}
