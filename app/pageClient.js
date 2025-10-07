@@ -83,9 +83,6 @@ export default function HomePageClient() {
           <a href="#programme" className="py-2 hover:text-green-600">
             Programme
           </a>
-          <a href="/about" className="py-2 hover:text-green-600">
-            À propos
-          </a>
         </div>
       </header>
 
@@ -132,12 +129,54 @@ export default function HomePageClient() {
         <h2 className="text-3xl font-bold text-green-600 mb-6">Programme</h2>
         <ul className="space-y-4 text-lg">
           <li>19h00 — Ouverture des portes</li>
-          <li>21h30 — Warm Up DJ</li>
-          <li>23h00 — DJ principal</li>
-          <li>02h00 — Set techno</li>
-          <li>05h00 — After jusqu’au matin</li>
+          <li>04h30 — Fermeture des portes</li>
         </ul>
       </section>
+
+{/* DJS */}
+<section
+  id="djs"
+  className="fade-in text-center py-16 bg-white scroll-mt-20"
+>
+  <h2 className="text-3xl font-bold text-green-600 mb-6">DJ's</h2>
+  <ul className="space-y-4 text-lg">
+    <li>
+      Sweet G{" "}
+      <a
+        href="https://www.instagram.com/dj_sweet_g/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-pink-600 hover:underline"
+      >
+        @dj_sweet_g
+      </a>
+    </li>
+    <li>
+      FLPX{" "}
+      <a
+        href="https://www.instagram.com/flpxmusic/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-pink-600 hover:underline"
+      >
+        @flpxmusic
+      </a>
+    </li>
+    <li>
+      GVSTO{" "}
+      <a
+        href="https://www.instagram.com/gvsto__/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-pink-600 hover:underline"
+      >
+        @gvsto__
+      </a>
+    </li>
+  </ul>
+</section>
+
+
     </main>
   );
 }
