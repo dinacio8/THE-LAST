@@ -65,6 +65,9 @@ export default function HomePageClient() {
             <a href="#programme" className="hover:text-green-600">
               Programme
             </a>
+            <a href="#djs" className="hover:text-green-600">
+              DJ’s
+            </a>
           </nav>
           <button id="burgerBtn" className="md:hidden flex flex-col gap-1">
             <span className="block w-6 h-0.5 bg-black"></span>
@@ -82,6 +85,9 @@ export default function HomePageClient() {
           </a>
           <a href="#programme" className="py-2 hover:text-green-600">
             Programme
+          </a>
+          <a href="#djs" className="py-2 hover:text-green-600">
+            DJ’s
           </a>
         </div>
       </header>
@@ -133,50 +139,48 @@ export default function HomePageClient() {
         </ul>
       </section>
 
-{/* DJS */}
-<section
-  id="djs"
-  className="fade-in text-center py-16 bg-white scroll-mt-20"
->
-  <h2 className="text-3xl font-bold text-green-600 mb-6">DJ's</h2>
-  <ul className="space-y-4 text-lg">
-    <li>
-      Sweet G{" "}
-      <a
-        href="https://www.instagram.com/dj_sweet_g/"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-pink-600 hover:underline"
+      {/* DJS */}
+      <section
+        id="djs"
+        className="fade-in text-center py-16 bg-white scroll-mt-20"
       >
-        @dj_sweet_g
-      </a>
-    </li>
-    <li>
-      FLPX{" "}
-      <a
-        href="https://www.instagram.com/flpxmusic/"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-pink-600 hover:underline"
-      >
-        @flpxmusic
-      </a>
-    </li>
-    <li>
-      GVSTO{" "}
-      <a
-        href="https://www.instagram.com/gvsto__/"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-pink-600 hover:underline"
-      >
-        @gvsto__
-      </a>
-    </li>
-  </ul>
-</section>
-
-
+        <h2 className="text-3xl font-bold text-green-600 mb-6">DJ's</h2>
+        <ul className="space-y-4 text-lg">
+          <li>
+            Sweet G{" "}
+            <a
+              href="https://www.instagram.com/dj_sweet_g/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-pink-600 hover:underline"
+            >
+              @dj_sweet_g
+            </a>
+          </li>
+          <li>
+            FLPX{" "}
+            <a
+              href="https://www.instagram.com/flpxmusic/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-pink-600 hover:underline"
+            >
+              @flpxmusic
+            </a>
+          </li>
+          <li>
+            GVSTO{" "}
+            <a
+              href="https://www.instagram.com/gvsto__/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-pink-600 hover:underline"
+            >
+              @gvsto__
+            </a>
+          </li>
+        </ul>
+      </section>
     </main>
   );
 }
