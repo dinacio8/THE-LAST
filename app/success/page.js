@@ -31,8 +31,6 @@ export default function SuccessPage() {
         document.getElementById("type").textContent = data.type;
         document.getElementById("price").textContent = data.price;
         document.getElementById("email").textContent = data.email;
-        document.getElementById("invoice").textContent = data.invoice;
-        document.getElementById("ticket").textContent = data.orderNumber;
         document.getElementById("sent").textContent =
           data.status === "sent" ? "✅ Envoyé" : "⏳ En cours d’envoi";
       } catch (err) {
@@ -71,12 +69,6 @@ export default function SuccessPage() {
           </p>
           <p>
             <strong>Email :</strong> <span id="email"></span>
-          </p>
-          <p>
-            <strong>Facture :</strong> <span id="invoice"></span>
-          </p>
-          <p>
-            <strong>Ticket :</strong> <span id="ticket"></span>
           </p>
           <p>
             <strong>Statut :</strong> <span id="sent"></span>
