@@ -101,20 +101,33 @@ export default function AdminPage() {
                 ADMIN - THE LAST
               </h1>
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={exportExcel}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md"
-              >
-                📊 Export Excel
-              </button>
-              <button
-                onClick={handleLogout}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md"
-              >
-                🚪 Déconnexion
-              </button>
-            </div>
+<div className="flex items-center gap-3">
+  <button
+    onClick={exportExcel}
+    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md"
+  >
+    📊 Export Excel
+  </button>
+  <button
+    onClick={() => window.location.href = "/api/download-all?type=ticket"}
+    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+  >
+    🎟 Tous les billets
+  </button>
+  <button
+    onClick={() => window.location.href = "/api/download-all?type=invoice"}
+    className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md"
+  >
+    📄 Toutes les factures
+  </button>
+  <button
+    onClick={handleLogout}
+    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md"
+  >
+    🚪 Déconnexion
+  </button>
+</div>
+
           </header>
 
           <main className="p-6 overflow-x-auto">
