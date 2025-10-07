@@ -95,7 +95,7 @@ async function generateTicketPDF({ firstName, lastName, type, sessionId }) {
     width: width - 20,
     height: height - 20,
     borderWidth: 2,
-    color: rgb(0.2, 0.2, 0.2),
+    color: rgb(255, 255, 255),
   });
 
   // --- Logo centré en haut ---
@@ -125,14 +125,6 @@ async function generateTicketPDF({ firstName, lastName, type, sessionId }) {
     color: textColor,
   });
 
-  page.drawText("Samedi 18 octobre 2025 — Dès 19h", {
-    x: (width - font.widthOfTextAtSize("Samedi 18 octobre 2025 — Dès 19h", 11)) / 2,
-    y: titleY - 18,
-    size: 11,
-    font,
-    color: textColor,
-  });
-
   // --- Bloc infos participant ---
   page.drawText(`Nom : ${firstName} ${lastName}`, {
     x: 30,
@@ -142,7 +134,7 @@ async function generateTicketPDF({ firstName, lastName, type, sessionId }) {
     color: textColor,
   });
   page.drawText(`Type : ${type}`, { x: 30, y: 100, size: 12, font, color: textColor });
-  page.drawText("Lieu : GVA Paintball", { x: 30, y: 80, size: 12, font, color: textColor });
+  page.drawText("Samedi 18 octobre 2025 — Dès 19h", { x: 30, y: 80, size: 12, font, color: textColor });
   page.drawText("Entrée valable pour 1 personne", { x: 30, y: 60, size: 12, font, color: textColor });
 
   // --- QR Code ---
