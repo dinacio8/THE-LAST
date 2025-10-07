@@ -2,8 +2,7 @@ import Stripe from "stripe";
 
 export async function POST(req) {
   try {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
+    // ✅ Vérifie que la clé Stripe est bien dispo
     if (!process.env.STRIPE_SECRET_KEY) {
       console.error("❌ STRIPE_SECRET_KEY manquante");
       return new Response(
@@ -12,37 +11,56 @@ export async function POST(req) {
       );
     }
 
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
     const body = await req.json();
     console.log("📦 Données reçues :", body);
 
     const { firstName, lastName, address, email, type } = body;
 
+    // ✅ Validation basique
     if (!email || !firstName || !lastName) {
       console.warn("⚠️ Champs manquants :", { firstName, lastName, email });
-      return new Response(JSON.stringify({ error: "Champs manquants" }), {
-        status: 400,
-      });
+      return new Response(
+        JSON.stringify({ error: "Champs manquants" }),
+        { status: 400 }
+      );
     }
 
+    // ✅ Détermine le prix
     const price = type === "INDIVIDUEL" ? 5 : 5;
 
-const session = await stripe.checkout.sessions.create({
-  payment_method_types: ['card', 'twint'], // ✅ ajoute TWINT ici
-  mode: 'payment',
-  success_url: `${process.env.BASE_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-  cancel_url: `${process.env.BASE_URL}/checkout?canceled=true`,
-  line_items: [
-    {
-      price_data: {
-        currency: 'chf',
-        product_data: { name: `${type} - The Last ` },
-        unit_amount: 500, // 5 CHF → en centimes
+    // ✅ Base URL sécurisée
+    const baseUrl =
+      process.env.BASE_URL?.startsWith("http")
+        ? process.env.BASE_URL
+        : `https://${process.env.BASE_URL || "evenement.gvapaintball.com"}`;
+
+    // ✅ Création de la session Stripe Checkout
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card", "twint"], // active Twint + cartes
+      mode: "payment",
+      success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/checkout?canceled=true`,
+      line_items: [
+        {
+          price_data: {
+            currency: "chf",
+            product_data: {
+              name: `${type} - The Last @ GVA Paintball`,
+            },
+            unit_amount: price * 100, // conversion CHF → centimes
+          },
+          quantity: 1,
+        },
+      ],
+      customer_email: email,
+      metadata: {
+        firstName,
+        lastName,
+        address,
+        type,
       },
-      quantity: 1,
-    },
-  ],
-  customer_email: email,
-});
+    });
 
     console.log("✅ Session créée :", session.id);
 
@@ -53,7 +71,9 @@ const session = await stripe.checkout.sessions.create({
   } catch (err) {
     console.error("🔥 Erreur Stripe :", err);
     return new Response(
-      JSON.stringify({ error: err.message || "Erreur interne" }),
+      JSON.stringify({
+        error: err.message || "Erreur interne lors de la création de session",
+      }),
       { status: 500 }
     );
   }
