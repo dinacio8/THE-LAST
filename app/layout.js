@@ -36,7 +36,7 @@ export default function RootLayout({ children }) {
             className="hover:opacity-80 transition"
           >
             <img
-              src="/icons/instagram.svg"
+              src="https://cdn.jsdelivr.net/npm/simple-icons/icons/instagram.svg"
               alt="Instagram"
               className="h-7 w-7 inline"
             />
@@ -48,7 +48,7 @@ export default function RootLayout({ children }) {
             className="hover:opacity-80 transition"
           >
             <img
-              src="/icons/tiktok.svg"
+              src="https://cdn.jsdelivr.net/npm/simple-icons/icons/tiktok.svg"
               alt="TikTok"
               className="h-7 w-7 inline"
             />
