@@ -3,44 +3,48 @@ import { useEffect } from "react";
 
 export default function HomePageClient() {
   useEffect(() => {
-    // Burger menu toggle
+    // --- Burger Menu ---
     const burgerBtn = document.getElementById("burgerBtn");
     const mobileMenu = document.getElementById("mobileMenu");
-    if (burgerBtn && mobileMenu) {
-      burgerBtn.addEventListener("click", () =>
-        mobileMenu.classList.toggle("hidden")
-      );
-      document.querySelectorAll("#mobileMenu a").forEach((link) =>
-        link.addEventListener("click", () =>
-          mobileMenu.classList.add("hidden")
-        )
-      );
-    }
 
-    // Fade-in observer
+    if (burgerBtn && mobileMenu) {
+      const toggleMenu = () => mobileMenu.classList.toggle("hidden");
+      burgerBtn.addEventListener("click", toggleMenu);
+
+      // Fermer le menu quand on clique sur un lien
+      const closeMenu = () => mobileMenu.classList.add("hidden");
+      document.querySelectorAll("#mobileMenu a").forEach((link) =>
+        link.addEventListener("click", closeMenu)
+      );
+
+      return () => {
+        burgerBtn.removeEventListener("click", toggleMenu);
+        document.querySelectorAll("#mobileMenu a").forEach((link) =>
+          link.removeEventListener("click", closeMenu)
+        );
+      };
+    }
+  }, []);
+
+  useEffect(() => {
+    // --- Animation fade-in ---
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) entry.target.classList.add("show");
       });
     });
     document.querySelectorAll(".fade-in").forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
 
-    // Button “Acheter billet”
+  useEffect(() => {
+    // --- Bouton d’achat ---
     const buyBtn = document.getElementById("buyStandard");
     if (buyBtn) {
       buyBtn.addEventListener("click", () => {
-        const USE_STRIPE = true;
-        if (USE_STRIPE) {
-          window.location.href = "/checkout?type=INDIVIDUEL";
-        } else {
-          window.location.href = "/fake-checkout?type=INDIVIDUEL";
-        }
+        window.location.href = "/checkout?type=INDIVIDUEL";
       });
     }
-
-    return () => {
-      observer.disconnect();
-    };
   }, []);
 
   return (
@@ -58,6 +62,8 @@ export default function HomePageClient() {
               The Last
             </span>
           </a>
+
+          {/* Menu Desktop */}
           <nav className="hidden md:flex gap-6 text-gray-700 font-semibold">
             <a href="#billets" className="hover:text-green-600">
               Billets
@@ -65,10 +71,15 @@ export default function HomePageClient() {
             <a href="#programme" className="hover:text-green-600">
               Programme
             </a>
+            <a href="#nourriture" className="hover:text-green-600">
+              Nourriture & Boissons
+            </a>
             <a href="#djs" className="hover:text-green-600">
               DJ’s
             </a>
           </nav>
+
+          {/* Bouton burger mobile */}
           <button id="burgerBtn" className="md:hidden flex flex-col gap-1">
             <span className="block w-6 h-0.5 bg-black"></span>
             <span className="block w-6 h-0.5 bg-black"></span>
@@ -76,15 +87,19 @@ export default function HomePageClient() {
           </button>
         </div>
 
+        {/* Menu mobile */}
         <div
           id="mobileMenu"
-          className="hidden flex-col bg-gray-100 p-4 md:hidden font-semibold"
+          className="hidden flex-col bg-gray-100 p-4 md:hidden font-semibold text-center"
         >
           <a href="#billets" className="py-2 hover:text-green-600">
             Billets
           </a>
           <a href="#programme" className="py-2 hover:text-green-600">
             Programme
+          </a>
+          <a href="#nourriture" className="py-2 hover:text-green-600">
+            Nourriture & Boissons
           </a>
           <a href="#djs" className="py-2 hover:text-green-600">
             DJ’s
@@ -110,10 +125,7 @@ export default function HomePageClient() {
       </section>
 
       {/* BILLETS */}
-      <section
-        id="billets"
-        className="fade-in text-center py-16 bg-white scroll-mt-20"
-      >
+      <section id="billets" className="fade-in text-center py-16 bg-white scroll-mt-20">
         <h2 className="text-3xl font-bold text-green-600 mb-6">
           Choisis ton billet
         </h2>
@@ -128,10 +140,7 @@ export default function HomePageClient() {
       </section>
 
       {/* PROGRAMME */}
-      <section
-        id="programme"
-        className="fade-in py-16 bg-gray-50 text-center scroll-mt-20"
-      >
+      <section id="programme" className="fade-in py-16 bg-gray-50 text-center scroll-mt-20">
         <h2 className="text-3xl font-bold text-green-600 mb-6">Programme</h2>
         <ul className="space-y-4 text-lg">
           <li>19h00 — Ouverture des portes</li>
@@ -139,11 +148,17 @@ export default function HomePageClient() {
         </ul>
       </section>
 
+      {/* NOURRITURE & BOISSONS */}
+      <section id="nourriture" className="fade-in py-16 bg-white text-center scroll-mt-20">
+        <h2 className="text-3xl font-bold text-green-600 mb-6">Nourriture & Boissons</h2>
+        <ul className="space-y-4 text-lg">
+          <li>Burgers, Hot-dogs, Frites & Snacks</li>
+          <li>Boissons soft, bières & cocktails 🍹</li>
+        </ul>
+      </section>
+
       {/* DJS */}
-      <section
-        id="djs"
-        className="fade-in text-center py-16 bg-white scroll-mt-20"
-      >
+      <section id="djs" className="fade-in text-center py-16 bg-gray-50 scroll-mt-20">
         <h2 className="text-3xl font-bold text-green-600 mb-6">DJ's</h2>
         <ul className="space-y-4 text-lg">
           <li>
