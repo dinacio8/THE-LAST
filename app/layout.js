@@ -50,7 +50,7 @@ export default function RootLayout({ children }) {
             <img
               src="https://cdn.jsdelivr.net/npm/simple-icons/icons/tiktok.svg"
               alt="TikTok"
-              className="h-7 w-7 inline"
+              className="h-7 w-7 inline invert"
             />
           </a>
         </div>
