@@ -93,13 +93,13 @@ export default function HomePageClient() {
           className="hidden flex-col bg-gray-100 p-4 md:hidden font-semibold text-center"
         >
           <a href="#billets" className="py-2 hover:text-green-600">
-            Billets
+            Billets | 
           </a>
           <a href="#programme" className="py-2 hover:text-green-600">
-            Programme
+            Programme | 
           </a>
           <a href="#nourriture" className="py-2 hover:text-green-600">
-            Nourriture & Boissons
+            Nourriture & Boissons | 
           </a>
           <a href="#djs" className="py-2 hover:text-green-600">
             DJ’s
