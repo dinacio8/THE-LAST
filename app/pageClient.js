@@ -152,8 +152,6 @@ export default function HomePageClient() {
       <section id="nourriture" className="fade-in py-16 bg-white text-center scroll-mt-20">
         <h2 className="text-3xl font-bold text-green-600 mb-6">Nourriture & Boissons</h2>
         <ul className="space-y-4 text-lg">
-          <li>Burgers, Hot-dogs, Frites & Snacks</li>
-          <li>Boissons soft, bières & cocktails 🍹</li>
         </ul>
       </section>
 
